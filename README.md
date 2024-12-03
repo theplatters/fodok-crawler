@@ -8,6 +8,7 @@ To run: `lein run`
 
 - [clojure](https://clojure.org/)
 - [leingen](https://wiki.leiningen.org/)
+- ruby
 
 ## License
 

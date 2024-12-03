@@ -1,36 +1,57 @@
 (ns fodok-crawler.core
-  (:gen-class)
-  (:require
-   [fodok-crawler.doi :as doi]))
+  (:gen-class))
 
 (require '[clj-http.client :as client]
          '[clojure.data.csv :as csv]
          '[clojure.java.io :as io]
          '[fodok-crawler.util :as util]
-         '[fodok-crawler.doi :as doi])
+         '[fodok-crawler.doi :as doi]
+         '[clojure.java.shell :as shell])
 
+(defn ds [row tag-mapping]
+  (let [content (:content row)]
+    (into {}
+          (map (fn [[key tag]]
+                 [key (util/filter_for_tag tag content)])
+               tag-mapping))))
+
+;; Example usage:
 (defn destructure_publication [publication_row]
-  (let [content (:content publication_row)]
-    {:title (util/filter_for_tag :TITEL content)
-     :authors (util/filter_for_tag :AUTOREN_ZITAT content)
-     :year (util/filter_for_tag :ERSCHEINUNGSJAHR content)
-     :citation (util/filter_for_tag :ZITAT_DE content)
-     :id (util/filter_for_tag :PUB_ID content)}))
+  (ds publication_row
+      {:title    :TITEL
+       :authors  :AUTOREN_ZITAT
+       :year     :ERSCHEINUNGSJAHR
+       :citation :ZITAT_DE
+       :id       :PUB_ID}))
 
 (defn destructure_talk [talk_row]
-  (let [content (:content talk_row)]
-    {:title (util/filter_for_tag :TITEL content)
-     :date (util/filter_for_tag :DATUM content)}))
+  (ds talk_row
+      {:title    :TITEL
+       :date     :DATUM
+       :id       :V_ID
+       :person   :PERSONEN_ZITAT
+       :citation :ZITAT_DE}))
 
 (defn destructure_reasearch_project [rp_row]
-  (let [content (:content rp_row)]
-    {:name (util/filter_for_tag :BEZEICHNUNG content)}))
+  (ds rp_row
+      {:name   :BEZEICHNUNG
+       :person :PERSONEN_ZITAT
+       :start  :ANFANG
+       :end    :ENDE}))
+
+(defn destructure_scs [scs_row]
+  (ds scs_row
+      {:name :BEZEICHNUNG
+       :person :PERSONEN_ZITAT
+       :start :ANFANG
+       :ende :ENDE}))
 
 (defn destructure_type [type_of_content, content]
   (let [destructure_fun (case type_of_content
                           :VORTRAGSTYPEN destructure_talk
                           :PUBLIKATIONSTYPEN destructure_publication
-                          :FORSCHUNGSPROJEKTTYPEN destructure_reasearch_project)
+                          :FORSCHUNGSPROJEKTTYPEN destructure_reasearch_project
+                          :SCSTYPEN destructure_scs)
         type_title (-> content :content first :content first)
         rows (-> content :content (nth 2) :content)]
     (map #(-> % destructure_fun
@@ -65,8 +86,11 @@
                                doi/map_doi_to_publications)))
 
 (def research_projcets (future (get_specific_contents :FORSCHUNGSPROJEKTTYPEN content)))
+(def scs (future (get_specific_contents :SCSTYPEN content)))
 
 (defn -main [& _args]
-  (write-csv "publications.csv" (deref publications) [:authors :title :year :type :citation :doi])
-  (write-csv "talks.csv" (deref talks) [:title :date :type])
-  (write-csv "research_projcets.csv" (deref research_projcets) [:name :type]))
+  (write-csv "data/publications.csv" (deref publications) [:authors :title :year :type :citation :doi])
+  (write-csv "data/talks.csv" (deref talks) [:title :date :type :id :person :citation])
+  (write-csv "data/research_projcets.csv" (deref research_projcets) [:name :type :start :end])
+  (write-csv "data/scs.csv" (deref scs) [:name :type :start :end :person])
+  (println (shell/sh "ruby" "src/latextify/latextify.rb")))
