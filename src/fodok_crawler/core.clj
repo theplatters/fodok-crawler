@@ -41,10 +41,10 @@
 
 (defn destructure_scs [scs_row]
   (ds scs_row
-      {:name :BEZEICHNUNG
+      {:name :TITEL
        :person :PERSONEN_ZITAT
        :start :ANFANG
-       :ende :ENDE}))
+       :end :ENDE}))
 
 (defn destructure_type [type_of_content, content]
   (let [destructure_fun (case type_of_content
@@ -74,19 +74,30 @@
        (destructure_types type_of_content)
        flatten))
 
-(def content
-  (-> "https://fodok.jku.at/fodok/forschungseinheit_typo3.xsql?FE_ID=348&xml-stylesheet=none"
-      client/get
-      util/parse_to_xml))
+(def content (future
+               (-> "https://fodok.jku.at/fodok/forschungseinheit_typo3.xsql?FE_ID=348&xml-stylesheet=none"
+                   client/get
+                   util/parse_to_xml)))
 
-(def talks (future (get_specific_contents :VORTRAGSTYPEN content)))
+(def talks (future (->>
+                    content
+                    deref
+                    (get_specific_contents :VORTRAGSTYPEN))))
 
 (def publications (future (->> content
+                               deref
                                (get_specific_contents :PUBLIKATIONSTYPEN)
                                doi/map_doi_to_publications)))
 
-(def research_projcets (future (get_specific_contents :FORSCHUNGSPROJEKTTYPEN content)))
-(def scs (future (get_specific_contents :SCSTYPEN content)))
+(def research_projcets (future (->>
+                                content
+                                deref
+                                (get_specific_contents :FORSCHUNGSPROJEKTTYPEN))))
+
+(def scs (future (->>
+                  content
+                  deref
+                  (get_specific_contents :SCSTYPEN))))
 
 (defn -main [& _args]
   (write-csv "data/publications.csv" (deref publications) [:authors :title :year :type :citation :doi])
