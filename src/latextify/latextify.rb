@@ -2,9 +2,15 @@ require 'csv'
 
 def generate_latex file, filename
   latex = "\\begin{itemize}\n"
+  year = 0
   file.each do |row|
-    latex += "\\item #{row['title']}: #{row['authors']} #{row['citation']} - #{row["type"]}\n"
+    if row['year'] != year
+      year = row['year']
+      latex += "\\end{itemize} \n \\subsection{#{year}} \n \\begin{itemize} \n"
+    end
+    latex += "\t \\item #{row['title']}: #{row['authors']} #{row['citation']} - #{row["type"]}\n"
   end
+  latex += "\\end{itemize}"
   File.write(filename,latex)
 end
 
