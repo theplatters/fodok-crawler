@@ -21,6 +21,6 @@ working_papers, finished_papers = CSV.read('data/publications.csv', headers: tru
 
 generate_latex(working_papers,"data/working_papers.tex")
 puts 'LaTeX itemize list generated in working_papers.tex'
-generate_latex(working_papers,"data/publications.tex")
+generate_latex(finished_papers,"data/publications.tex")
 puts 'LaTeX itemize list generated in publications.tex'
 
