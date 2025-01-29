@@ -1,5 +1,9 @@
 (ns fodok-crawler.core
-  (:gen-class))
+  (:gen-class)
+  (:require
+   [clojure.xml :as xml]
+   [fodok-crawler.util :as util]
+   [fodok-crawler.doi :as doi]))
 
 (require '[clj-http.client :as client]
          '[clojure.data.csv :as csv]
@@ -43,6 +47,7 @@
   (ds scs_row
       {:name :TITEL
        :person :PERSONEN_ZITAT
+       :id :SCS_ID
        :start :ANFANG
        :end :ENDE}))
 
@@ -74,6 +79,9 @@
        (destructure_types type_of_content)
        flatten))
 
+(defn- url [id]
+  (format "https://fodok.jku.at/fodok/sc_service.xsql?SCS_ID=%s&xml-stylesheet=none" id))
+
 (def content (future
                (-> "https://fodok.jku.at/fodok/forschungseinheit_typo3.xsql?FE_ID=348&xml-stylesheet=none"
                    client/get
@@ -97,11 +105,16 @@
 (def scs (future (->>
                   content
                   deref
-                  (get_specific_contents :SCSTYPEN))))
+                  (get_specific_contents :SCSTYPEN)
+                  doi/map_place_to_scs)))
+
+(doi/map_place_to_scs (deref scs))
 
 (defn -main [& _args]
+  (let [publications (deref publications)])
+
   (write-csv "data/publications.csv" (deref publications) [:authors :title :year :type :citation :doi])
   (write-csv "data/talks.csv" (deref talks) [:title :date :type :id :person :citation])
   (write-csv "data/research_projcets.csv" (deref research_projcets) [:name :type :start :end])
-  (write-csv "data/scs.csv" (deref scs) [:name :type :start :end :person])
+  (write-csv "data/scs.csv" (deref scs) [:name :type :start :end :person :place])
   (println (shell/sh "ruby" "src/latextify/latextify.rb")))
