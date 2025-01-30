@@ -22,7 +22,7 @@ def generate_latex_for_scs(file, filename)
   by_year = file.group_by { |i| get_year(i['start']) }
   latex = ''
   by_year.each do |year, scs_by_year|
-    latex += "\\subsection{#{year}} \n"
+    latex += "\\subsection*{#{year}} \n"
     scs_by_year.group_by { |i| i['type'] }.each do |type, scs_by_type|
       puts type
       latex += "\\paragraph{#{type}} \n"
@@ -39,6 +39,7 @@ def generate_latex_for_scs(file, filename)
                    "\t \\item #{e['person']}: #{e['name']}. #{e['place']}, #{start_end} \n"
                  end
       end
+      latex += "\\end{enumerate} \n"
     end
   end
   File.write(filename, latex)
