@@ -1,16 +1,12 @@
 require 'csv'
 
 def generate_latex_for_publications(file, filename)
-  latex = "\\begin{enumerate}[leftmargin=*, labelsep=0.5cm]\n"
-  year = 0
-  file.each do |row|
-    if row['year'] != year
-      year = row['year']
-      latex += "\\end{enumerate} \n \\subsection*{#{year}} \n \\begin{enumerate}[leftmargin=*, labelsep=0.5cm] \n"
-    end
-    latex += "\t \\item #{row['authors']}:  #{row['title']}  #{row['citation']}\n"
-  end
-  latex += '\\end{enumerate}'
+  latex = file.group_by { |i| i['year'] }.map do |year, by_year|
+    "\\subsection*{#{year}}\n\\begin{enumerate}
+    #{by_year.map do |row|
+        "\t \\item #{row['authors']}: #{row['title']}#{row['citation']}"
+      end.join("\n")}\n\\end{enumerate}\n"
+  end.join
   File.write(filename, latex)
 end
 
@@ -76,12 +72,14 @@ working_papers, finished_papers = CSV.read('data/publications.csv', headers: tru
                                      .reverse
                                      .partition { |row| row['type'] == 'Working Paper' }
 
-_, finished_papers = finished_papers.partition { |row| row['type'] == 'Presseartikel / Medienberichte' }
+press_articles, finished_papers = finished_papers.partition { |row| row['type'] == 'Presseartikel / Medienberichte' }
 
 generate_latex_for_publications(working_papers, 'data/working_papers.tex')
 puts 'LaTeX itemize list generated in working_papers.tex'
 generate_latex_for_publications(finished_papers, 'data/publications.tex')
 puts 'LaTeX itemize list generated in publications.tex'
+generate_latex_for_publications(press_articles, 'data/press_articles.tex')
+puts 'LaTeX itemize list generated in press_articles.tex'
 
 scs = CSV.read('data/scs.csv', headers: true)
          .sort_by { |row| [get_year(row['start']), row['person']] }
