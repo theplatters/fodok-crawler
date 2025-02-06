@@ -14,29 +14,24 @@ def get_year(date)
   date.split('.')[2].to_i
 end
 
+def generate_scs_type(scs)
+  scs.map do |e|
+    duration = e['start'] == e['end'] ? e['start'] : "#{e['start']} - #{e['end']}"
+    location = [e['place'], duration].compact.join(', ')
+    "\\item #{e['person']}: #{e['name']}. #{location}"
+  end.join("\n")
+end
+
 def generate_latex_for_scs(file, filename)
-  by_year = file.group_by { |i| get_year(i['start']) }
-  latex = ''
-  by_year.each do |year, scs_by_year|
-    latex += "\\subsection*{#{year}} \n"
-    scs_by_year.group_by { |i| i['type'] }.each do |type, scs_by_type|
-      latex += "\\paragraph{#{type}} \n"
-      latex += "\\begin{enumerate}[leftmargin=*, labelsep=0.5cm] \n "
-      scs_by_type.each do |e|
-        start_end = if e['start'] == e['end']
-                      e['start']
-                    else
-                      "#{e['start']} - #{e['end']}"
-                    end
-        latex += if e['place'].nil?
-                   "\t \\item #{e['person']}: #{e['name']}. #{start_end} \n"
-                 else
-                   "\t \\item #{e['person']}: #{e['name']}. #{e['place']}, #{start_end} \n"
-                 end
-      end
-      latex += "\\end{enumerate} \n"
-    end
-  end
+  latex = file.group_by { |e| get_year(e['start']) }.map do |year, entries|
+    "\\subsection*{#{year}}" +
+      entries.group_by { |e| e['type'] }.map do |type, scs|
+        "\\paragraph{#{type}}
+\\begin{enumerate}[leftmargin=*, labelsep=0.5cm]
+#{generate_scs_type(scs)}
+\\end{enumerate}"
+      end.join("\n")
+  end.join
   File.write(filename, latex)
 end
 
@@ -62,8 +57,7 @@ end
 
 def generate_latex_for_talks(file, filename)
   latex = file.group_by { |i| get_year(i['date']) }.map do |year, by_year|
-    "\\subsection*{#{year}}\n
-    #{generate_talk_type(by_year)}"
+    "\\subsection*{#{year}}\n#{generate_talk_type(by_year)}"
   end.join
   File.write(filename, latex)
 end
@@ -95,5 +89,8 @@ research_seminar, talks = CSV.read('data/talks.csv', headers: true)
   row['invited-by'] == 'Research Seminar, ICAE' or row['invited-by'] == 'Open Research Seminar, ICAE'
 end
 
+media, talks = talks.partition { |row| row['type'] == 'Präsentation in Radio/TV' }
+
 generate_latex_for_talks(talks, 'data/talks.tex')
 generate_latex_for_talks(research_seminar, 'data/research_seminar.tex')
+generate_latex_for_talks(media, 'data/media.tex')

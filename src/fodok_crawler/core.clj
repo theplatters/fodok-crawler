@@ -27,8 +27,8 @@
   (util/ds rp_row
            {:name   :BEZEICHNUNG
             :person :PERSONEN_ZITAT
-            :start  :ANFANG
-            :end    :ENDE}))
+            :id     :FP_ID
+            :time   :ZITAT_DE}))
 
 (defn destructure-scs [scs_row]
   (util/ds scs_row
@@ -93,6 +93,6 @@
 (defn -main [& _args]
   (util/write-csv "data/publications.csv" (deref publications) [:authors :title :year :type :citation :doi])
   (util/write-csv "data/talks.csv" (deref talks) [:title :date :type :id :person :citation :invited-by :original-title :place])
-  (util/write-csv "data/research_projcets.csv" (deref research_projcets) [:name :type :start :end])
+  (util/write-csv "data/research_projcets.csv" (deref research_projcets) [:name :type :time, :id])
   (util/write-csv "data/scs.csv" (deref scs) [:name :type :start :end :person :place])
   (println (shell/sh "ruby" "src/latextify/latextify.rb")))
