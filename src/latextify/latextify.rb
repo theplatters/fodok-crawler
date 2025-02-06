@@ -24,7 +24,6 @@ def generate_latex_for_scs(file, filename)
   by_year.each do |year, scs_by_year|
     latex += "\\subsection*{#{year}} \n"
     scs_by_year.group_by { |i| i['type'] }.each do |type, scs_by_type|
-      puts type
       latex += "\\paragraph{#{type}} \n"
       latex += "\\begin{enumerate}[leftmargin=*, labelsep=0.5cm] \n "
       scs_by_type.each do |e|
@@ -45,6 +44,33 @@ def generate_latex_for_scs(file, filename)
   File.write(filename, latex)
 end
 
+def institution(row)
+  if row['place'].nil? && row['invited-by'].nil? && row['original-title'].nil?
+    ''
+  else
+    institution_info = ". #{row['invited-by']}#{row['original-title']}"
+    institution_info += ", #{row['place']}" unless row['place'].nil?
+    institution_info
+  end
+end
+
+def generate_talk_type(by_year)
+  by_year.group_by { |i| i['type'] }.map do |type, by_type|
+    "\\paragraph{#{type}}\n\\begin{enumerate}#{
+      by_type.map do |e|
+        "\n\t\\item #{e['person']}: #{e['title']}#{institution(e)}#{e['citation']}"
+      end.join}
+\\end{enumerate}\n"
+  end.join
+end
+
+def generate_latex_for_talks(file, filename)
+  latex = file.group_by { |i| get_year(i['date']) }.map do |year, by_year|
+    "\\subsection*{#{year}}\n
+    #{generate_talk_type(by_year)}"
+  end.join
+  File.write(filename, latex)
+end
 working_papers, finished_papers = CSV.read('data/publications.csv', headers: true)
                                      .sort_by { |row| [row['year'].to_i, row['authors']] }
                                      .reverse
@@ -63,3 +89,13 @@ scs = CSV.read('data/scs.csv', headers: true)
 
 generate_latex_for_scs(scs, 'data/scs.tex')
 puts 'LaTeX itemize list generated in scs.tex'
+
+research_seminar, talks = CSV.read('data/talks.csv', headers: true)
+                             .sort_by { |row| [get_year(row['date']), row['person']] }
+                             .reverse
+                             .partition do |row|
+  row['invited-by'] == 'Research Seminar, ICAE' or row['invited-by'] == 'Open Research Seminar, ICAE'
+end
+
+generate_latex_for_talks(talks, 'data/talks.tex')
+generate_latex_for_talks(research_seminar, 'data/research_seminar.tex')

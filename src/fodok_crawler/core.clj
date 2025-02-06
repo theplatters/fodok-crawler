@@ -68,7 +68,8 @@
 (def talks (future (->>
                     content
                     deref
-                    (get_specific_contents :VORTRAGSTYPEN))))
+                    (get_specific_contents :VORTRAGSTYPEN)
+                    doi/map_additional_data_to_talks)))
 
 (def publications (future (->> content
                                deref
