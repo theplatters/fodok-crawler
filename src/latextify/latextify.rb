@@ -1,10 +1,14 @@
 require 'csv'
 
+def sanitize(string)
+  string.gsub(/([&%$#_{}^\\])/, '\\\\\1')
+end
+
 def generate_latex_for_publications(file, filename)
   latex = file.group_by { |i| i['year'] }.map do |year, by_year|
     "\\subsection*{#{year}}\n\\begin{enumerate}
     #{by_year.map do |row|
-        "\t \\item #{row['authors']}: #{row['title']}#{row['citation']}"
+        "\t \\item #{sanitize(row['authors'])}: #{sanitize(row['title'])}#{sanitize(row['citation'])}"
       end.join("\n")}\n\\end{enumerate}\n"
   end.join
   File.write(filename, latex)
@@ -18,7 +22,8 @@ def generate_scs_type(scs)
   scs.map do |e|
     duration = e['start'] == e['end'] ? e['start'] : "#{e['start']} - #{e['end']}"
     location = [e['place'], duration].compact.join(', ')
-    "\\item #{e['person']}: #{e['name']}. #{location}"
+    s = sanitize("#{e['person']}: #{e['name']}. #{location}")
+    "\\item #{s}"
   end.join("\n")
 end
 
@@ -49,7 +54,8 @@ def generate_talk_type(by_year)
   by_year.group_by { |i| i['type'] }.map do |type, by_type|
     "\\paragraph{#{type}}\n\\begin{enumerate}#{
       by_type.map do |e|
-        "\n\t\\item #{e['person']}: #{e['title']}#{institution(e)}#{e['citation']}"
+        s = sanitize("#{e['person']}: #{e['title']}#{institution(e)}#{e['citation']}")
+        "\n\t\\item #{s}"
       end.join}
 \\end{enumerate}\n"
   end.join
