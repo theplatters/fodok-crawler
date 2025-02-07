@@ -4,6 +4,10 @@ def sanitize(string)
   string.gsub(/([&%$#_{}^\\])/, '\\\\\1')
 end
 
+def paragraph(str)
+  "\\paragraph{#{sanitize(str)}"
+end
+
 def generate_latex_for_publications(file, filename)
   latex = file.group_by { |i| i['year'] }.map do |year, by_year|
     "\\subsection*{#{year}}\n\\begin{enumerate}
@@ -31,7 +35,7 @@ def generate_latex_for_scs(file, filename)
   latex = file.group_by { |e| get_year(e['start']) }.map do |year, entries|
     "\\subsection*{#{year}}" +
       entries.group_by { |e| e['type'] }.map do |type, scs|
-        "\\paragraph{#{type}}
+        "#{paragraph(type)}
 \\begin{enumerate}[leftmargin=*, labelsep=0.5cm]
 #{generate_scs_type(scs)}
 \\end{enumerate}"
@@ -51,8 +55,8 @@ def institution(row)
 end
 
 def generate_talk_type(by_year)
-  by_year.group_by { |i| i['type'] }.map do |type, by_type|
-    "\\paragraph{#{type}}\n\\begin{enumerate}#{
+  by_year.group_by { |i| i['type'] }.map do |_type, by_type|
+    "#{paragraph(type)}\n\\begin{enumerate}#{
       by_type.map do |e|
         s = sanitize("#{e['person']}: #{e['title']}#{institution(e)}#{e['citation']}")
         "\n\t\\item #{s}"
