@@ -5,14 +5,15 @@ def sanitize(string)
 end
 
 def paragraph(str)
-  "\\paragraph{#{sanitize(str)}"
+  "\\paragraph{#{sanitize(str)}}"
 end
 
 def generate_latex_for_publications(file, filename)
   latex = file.group_by { |i| i['year'] }.map do |year, by_year|
     "\\subsection*{#{year}}\n\\begin{enumerate}
     #{by_year.map do |row|
-        "\t \\item #{sanitize(row['authors'])}: #{sanitize(row['title'])}#{sanitize(row['citation'])}"
+        s = sanitize("#{row['authors']}: #{row['title']}#{row['citation']}")
+        "\t \\item #{s}"
       end.join("\n")}\n\\end{enumerate}\n"
   end.join
   File.write(filename, latex)
@@ -55,7 +56,7 @@ def institution(row)
 end
 
 def generate_talk_type(by_year)
-  by_year.group_by { |i| i['type'] }.map do |_type, by_type|
+  by_year.group_by { |i| i['type'] }.map do |type, by_type|
     "#{paragraph(type)}\n\\begin{enumerate}#{
       by_type.map do |e|
         s = sanitize("#{e['person']}: #{e['title']}#{institution(e)}#{e['citation']}")
