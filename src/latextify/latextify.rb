@@ -86,7 +86,8 @@ research_seminar, talks = CSV.read('data/talks.csv', headers: true)
                              .sort_by { |row| [get_year(row['date']), row['person']] }
                              .reverse
                              .partition do |row|
-  row['invited-by'] == 'Research Seminar, ICAE' or row['invited-by'] == 'Open Research Seminar, ICAE'
+  (!row['invited-by'].nil? && row['invited-by'].include?('Research Seminar')) or
+    (!row['original-title'].nil? && row['original-title'].include?('Research Seminar'))
 end
 
 media, talks = talks.partition { |row| row['type'] == 'Präsentation in Radio/TV' }
