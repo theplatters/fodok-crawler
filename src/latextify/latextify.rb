@@ -1,7 +1,7 @@
 require 'csv'
 
 def sanitize(string)
-  string.gsub(/([&%$#_{}^\\])/, '\\\\\1')
+  string.gsub(/([&%$#_{}^\\])/, '\\\\\1').gsub('"', "''").gsub('-', '--')
 end
 
 def paragraph(str)
