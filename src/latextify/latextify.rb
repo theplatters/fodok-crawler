@@ -1,7 +1,7 @@
 require 'csv'
 
 def sanitize(string)
-  string.gsub(/([&%$#_{}^\\])/, '\\\\\1').gsub('"', "''").gsub('-', '--')
+  string.gsub(/([&%$#_{}^\\])/, '\\\\\1').gsub('"', "''").gsub('-', '--') unless string.nil?
 end
 
 def paragraph(str)
@@ -79,6 +79,21 @@ working_papers, finished_papers = CSV.read('data/publications.csv', headers: tru
   row['type'] == 'Working Paper' && (row['citation'].include?('ICAE') || row['citation'].include?('SPACE'))
 end
 
+def generate_latex_for_rp(file, filename)
+  latex = file.group_by { |i| i['type'] }.map do |type, by_type|
+    "#{paragraph(type)}\n\\begin{enumerate}\n" + by_type.map do |row|
+      "\\item\n\\begin{tabular}
+        Projekt  & \\textbf{#{sanitize(row['name'])}}  \\
+        Projektleitung  & #{sanitize(row['leader'])} \\
+        Fördergeber*in  & NAME \\
+        Fördervolumen  & NAME \\
+        Laufzeit  &  #{sanitize(row['time'])}
+    \\end{tabular}"
+    end.join("\n")
+  end.join("\n")
+  File.write(filename, latex)
+end
+
 press_articles, finished_papers = finished_papers.partition { |row| row['type'] == 'Presseartikel / Medienberichte' }
 
 generate_latex_for_publications(working_papers, 'data/working_papers.tex')
@@ -108,3 +123,6 @@ media, talks = talks.partition { |row| row['type'] == 'Präsentation in Radio/TV
 generate_latex_for_talks(talks, 'data/talks.tex')
 generate_latex_for_talks(research_seminar, 'data/research_seminar.tex')
 generate_latex_for_talks(media, 'data/media.tex')
+
+rp = CSV.read('data/research_projects.csv', headers: true)
+generate_latex_for_rp(rp, 'data/rp.tex')

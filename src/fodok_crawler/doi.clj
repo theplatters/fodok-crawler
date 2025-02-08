@@ -50,17 +50,19 @@
   (map #(merge % (get-talk-info %)) talks))
 
 (defn- rp_url [id]
-  (format "	https://fodok.jku.at/fodok/forschungsprojekt.xsql?FP_ID=%s&xml-stylesheet=none" id))
+  (format "https://fodok.jku.at/fodok/forschungsprojekt.xsql?FP_ID=%s&xml-stylesheet=none" id))
 
-(defn get-rp-info [rp]
+(defn- get-leader [leader-struct]
+  (let [content (:content leader-struct)] (->> content
+                                               (#(str (util/filter-for-tag :VORNAME %) " " (util/filter-for-tag :NACHNAME %))))))
+
+(defn- get-rp-info [rp]
   (let [{:keys [id]} rp
         content (-> id
                     rp_url
                     client/get
                     util/parse_to_xml)]
-    {:invited-by (util/filter-for-tag :EINGELADEN_VON content)
-     :place (util/filter-for-tag :STANDORT content)
-     :original-title (util/filter-for-tag :ORIGINAL_TITEL content)}))
+    {:leader (get-leader (util/filter-for-tag :LEITER content))}))
 
 (defn map_additional_data_to_rp [rp]
   (map #(merge % (get-rp-info %)) rp))

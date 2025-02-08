@@ -79,7 +79,8 @@
 (def research_projcets (future (->>
                                 content
                                 deref
-                                (get_specific_contents :FORSCHUNGSPROJEKTTYPEN))))
+                                (get_specific_contents :FORSCHUNGSPROJEKTTYPEN)
+                                doi/map_additional_data_to_rp)))
 
 (def scs (future (->>
                   content
@@ -88,11 +89,12 @@
                   doi/map_place_to_scs)))
 
 (doi/map_place_to_scs (deref scs))
+(deref research_projcets)
 
 (doi/map_additional_data_to_talks (deref talks))
 (defn -main [& _args]
   (util/write-csv "data/publications.csv" (deref publications) [:authors :title :year :type :citation :doi])
   (util/write-csv "data/talks.csv" (deref talks) [:title :date :type :id :person :citation :invited-by :original-title :place])
-  (util/write-csv "data/research_projcets.csv" (deref research_projcets) [:name :type :time, :id])
+  (util/write-csv "data/research_projects.csv" (deref research_projcets) [:leader  :name :type :time, :id])
   (util/write-csv "data/scs.csv" (deref scs) [:name :type :start :end :person :place])
   (println (shell/sh "ruby" "src/latextify/latextify.rb")))
