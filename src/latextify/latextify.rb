@@ -75,7 +75,9 @@ end
 working_papers, finished_papers = CSV.read('data/publications.csv', headers: true)
                                      .sort_by { |row| [row['year'].to_i, row['authors']] }
                                      .reverse
-                                     .partition { |row| row['type'] == 'Working Paper' }
+                                     .partition do |row|
+  row['type'] == 'Working Paper' && (row['citation'].include?('ICAE') || row['citation'].include?('SPACE'))
+end
 
 press_articles, finished_papers = finished_papers.partition { |row| row['type'] == 'Presseartikel / Medienberichte' }
 
