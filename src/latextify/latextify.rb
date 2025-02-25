@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'csv'
 
 def sanitize(string)
@@ -77,7 +79,7 @@ working_papers, finished_papers = CSV.read('data/publications.csv', headers: tru
                                      .reverse
                                      .partition do |row|
   row['type'] == 'Working Paper' &&
-    (row['citation'].include?('ICAE') || row['citation'].include?('SPACE'))
+    (row['citation'].include?('ICAE') || row['citation'].include?('SPACE') || row['citation'].include?('155') || row['citation'].include?('154'))
 end
 
 def generate_latex_for_rp(file, filename)
