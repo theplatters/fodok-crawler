@@ -1,7 +1,7 @@
 require 'csv'
 
 def sanitize(string)
-  string.gsub(/([&%$#_{}^\\])/, '\\\\\1').gsub('"', "''").gsub('-', '--') unless string.nil?
+  string&.gsub(/([&%$#_{}^\\])/, '\\\\\1')&.gsub(/"(.+)"/, '\\glqq \1\\grqq{}')
 end
 
 def paragraph(str)
@@ -110,7 +110,7 @@ scs.each do |row|
   case row['type']
   when /^Funktion/ then row['type'] = 'Funktion / Mitgliedschaft'
   when /^GutachterIn/ then row['type'] = 'Gutachter*in'
-  when /^Tagung/ then row['type'] = 'Programm-Komittee \& Session oder Panel'
+  when /^Tagung/ then row['type'] = 'Programm-Komittee & Session oder Panel'
   when /^Veranstaltungsorganisation/ then row['type'] = 'Veranstaltungsorganisation'
   end
 end
