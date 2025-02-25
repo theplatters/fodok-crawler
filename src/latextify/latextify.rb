@@ -34,9 +34,9 @@ end
 
 def generate_latex_for_scs(file, filename)
   latex = file.group_by { |e| get_year(e['start']) }.map do |year, entries|
-    "\\subsection*{#{year}}" +
+    "\n\\subsection*{#{year}}" +
       entries.group_by { |e| e['type'] }.map do |type, scs|
-        "#{paragraph(type)}
+        "\n#{paragraph(type)}
 \\begin{enumerate}[leftmargin=*, labelsep=0.5cm]
 #{generate_scs_type(scs)}
 \\end{enumerate}"
@@ -76,7 +76,8 @@ working_papers, finished_papers = CSV.read('data/publications.csv', headers: tru
                                      .sort_by { |row| [row['year'].to_i, row['authors']] }
                                      .reverse
                                      .partition do |row|
-  row['type'] == 'Working Paper' && (row['citation'].include?('ICAE') || row['citation'].include?('SPACE'))
+  row['type'] == 'Working Paper' &&
+    (row['citation'].include?('ICAE') || row['citation'].include?('SPACE'))
 end
 
 def generate_latex_for_rp(file, filename)
@@ -104,7 +105,16 @@ generate_latex_for_publications(press_articles, 'data/press_articles.tex')
 puts 'LaTeX itemize list generated in press_articles.tex'
 
 scs = CSV.read('data/scs.csv', headers: true)
-         .sort_by { |row| [get_year(row['start']), row['person']] }
+
+scs.each do |row|
+  case row['type']
+  when /^Funktion/ then row['type'] = 'Funktion / Mitgliedschaft'
+  when /^GutachterIn/ then row['type'] = 'Gutachter*in'
+  when /^Tagung/ then row['type'] = 'Programm-Komittee \& Session oder Panel'
+  when /^Veranstaltungsorganisation/ then row['type'] = 'Veranstaltungsorganisation'
+  end
+end
+scs = scs.sort_by { |row| [get_year(row['start']), row['type'], row['person']] }
          .reverse
 
 generate_latex_for_scs(scs, 'data/scs.tex')
