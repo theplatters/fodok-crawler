@@ -44,8 +44,38 @@ def parse_publications
   generate_latex_for_publications(finished, 'data/publications.tex')
 end
 
+TO_EXCLUDE = ['Andere Gutachtertätigkeit', 'Begutachtung von Publikationen',
+              'Begutachtung von Publikationen oder Herausgebertätigkeit (Altdaten)', 'Gutachter/in für Förderinstitution', 'Herausgebertätigkeit', 'Organisation von Konferenz, Workshop, ...', 'Programm-Komitee', 'Sonstige Mitgliedschaft/Funktion', 'Teilnahme an Konferenz, Workshop, ...', 'Wissenschaftliche Gesellschaft'].freeze
+
+def generate_latex_for_activities(rows, out_filename)
+  latex = rows.map do |type, activities|
+    subsection = "\\subsection*{#{sanitize(type)}}\n"
+
+    items = activities.map do |act|
+      cont = act['Personen'].to_s + ' ' +
+             act['Externe Personen'].to_s + ' ' +
+             act['Titel'].to_s + ' ' +
+             act['Title'].to_s + ' ' +
+             act['Startdatum'].to_s
+      "\t\\item #{sanitize(cont)}"
+    end.join("\n")
+
+    subsection + "\\begin{enumerate}\n#{items}\n\\end{enumerate}\n"
+  end.join
+
+  File.write(out_filename, latex)
+end
+
+def parse_activities
+  activities = CSV.read('data/aktivitaeten_erweitert.csv', headers: true).group_by { |e| e['Übergeordneter Typ'] }
+
+  finished = activities.reject { |series, _| TO_EXCLUDE.include?(series) }
+  generate_latex_for_activities(finished, 'data/activities.tex')
+end
+
 def main
   parse_publications
+  parse_activities
 end
 
 main
