@@ -74,13 +74,6 @@ def generate_latex_for_talks(file, filename)
   end.join
   File.write(filename, latex)
 end
-working_papers, finished_papers = CSV.read('data/publications.csv', headers: true)
-                                     .sort_by { |row| [row['year'].to_i, row['authors']] }
-                                     .reverse
-                                     .partition do |row|
-  row['type'] == 'Working Paper' &&
-    (row['citation'].include?('ICAE') || row['citation'].include?('SPACE') || row['citation'].include?('155') || row['citation'].include?('154'))
-end
 
 def generate_latex_for_rp(file, filename)
   latex = file.group_by { |i| i['type'] }.map do |type, by_type|
@@ -95,6 +88,14 @@ def generate_latex_for_rp(file, filename)
     end.join("\n")
   end.join("\n")
   File.write(filename, latex)
+end
+
+working_papers, finished_papers = CSV.read('data/publications.csv', headers: true)
+                                     .sort_by { |row| [row['year'].to_i, row['authors']] }
+                                     .reverse
+                                     .partition do |row|
+  row['type'] == 'Working Paper' &&
+    (row['citation'].include?('ICAE') || row['citation'].include?('SPACE') || row['citation'].include?('155') || row['citation'].include?('154'))
 end
 
 press_articles, finished_papers = finished_papers.partition { |row| row['type'] == 'Presseartikel / Medienberichte' }
