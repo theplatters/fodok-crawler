@@ -1,7 +1,7 @@
 require 'csv'
 require_relative 'helper_methods'
 
-def build_item_content(item)
+def build_item_content_for_press(item)
   prelude = if item['Rollen der Mitwirkenden'] == 'Autor*in'
               "#{item['Personen']},"
             else
@@ -14,7 +14,7 @@ end
 def latextify_press(year, press_articles)
   subsection = "\\subsection*{#{year}}"
   items = press_articles.map do |item|
-    "\t \\item #{build_item_content(item)}"
+    "\t \\item #{build_item_content_for_press(item)}"
   end.join("\n")
 
   subsection + "
@@ -24,18 +24,15 @@ def latextify_press(year, press_articles)
 end
 
 def generate_latex_for_press(press, out_filename)
-  press['Jahr'] = press.map { |e| Date.parse(e['Datum der Veröffentlichung']).year }
   latex = group_by_year(press, &method(:latextify_press))
   File.write(out_filename, latex)
-end
-
-def generate_latex_for_media(press, out_file)
 end
 
 PRESS_FORMAT = %w[Hybrid Print Web NN].freeze
 
 def parse_press
   all_media = CSV.read('data/presse.csv', headers: true)
+  all_media['Jahr'] = all_media.map { |e| Date.parse(e['Datum der Veröffentlichung']).year }
 
   press = CSV::Table.new(
     all_media.select { |r| PRESS_FORMAT.include? r['Medienformat'] },
@@ -48,5 +45,5 @@ def parse_press
   )
 
   generate_latex_for_press(press, 'data/press.tex')
-  generate_latex_for_media(radio, 'data/press.tex')
+  generate_latex_for_press(radio, 'data/radio.tex')
 end
