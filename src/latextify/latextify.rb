@@ -32,7 +32,7 @@ def generate_scs_type(scs)
     s = sanitize("#{e['person']}: #{e['name']}. #{location}")
     "\\item #{s}"
   end.join("\n")
-end
+end.join
 
 def generate_latex_for_scs(file, filename)
   latex = file.group_by { |e| get_year(e['start']) }.map do |year, entries|
