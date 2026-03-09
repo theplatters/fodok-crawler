@@ -2,11 +2,28 @@
 
 require 'csv'
 require_relative 'helper_methods'
+require 'uri'
+
+def strip_apa_from_link(all_papers)
+  url_regex = %r{https?://\S+}
+
+  all_papers.each do |row|
+    urls = row['APA-Format'].scan(url_regex)
+    row['Links'] = urls.join(', ')
+    row['APA-Format'] = row['APA-Format'].gsub(url_regex, '').strip
+  end
+
+  all_papers
+end
 
 def publication_latextify(year, publications)
   subsection = "\\subsection*{#{year}}"
   items = publications.map do |pub|
-    "\t \\item #{sanitize(pub['APA-Format'])}"
+    if pub['Links'] != ''
+      "\t \\item \\href{#{pub['Links']}}{#{sanitize(pub['APA-Format'])}}"
+    else
+      "\t \\item #{sanitize(pub['APA-Format'])}"
+    end
   end.join("\n")
 
   subsection + "
@@ -34,6 +51,7 @@ WP_SERIES = ['ICAE Working Paper Series', 'SPACE Working Paper Series'].freeze
 
 def parse_publications
   publications = CSV.read('data/publikationen.csv', headers: true).sort_by_year_apa
+  publications = strip_apa_from_link(publications)
   by_series = publications.group_by { |row| row['Serienname'] }
 
   generate_latex_for_publications(by_series['SPACE Working Paper Series'], 'data/space_wp.tex')

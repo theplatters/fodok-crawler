@@ -94,8 +94,8 @@ working_papers, finished_papers = CSV.read('data/publications.csv', headers: tru
                                      .sort_by { |row| [row['year'].to_i, row['authors']] }
                                      .reverse
                                      .partition do |row|
-  row['type'] == 'Working Paper' &&
-    (row['citation'].include?('ICAE') || row['citation'].include?('SPACE') || row['citation'].include?('155') || row['citation'].include?('154'))
+                                       row['type'] == 'Working Paper' &&
+                                         (row['citation'].include?('ICAE') || row['citation'].include?('SPACE') || row['citation'].include?('155') || row['citation'].include?('154'))
 end
 
 press_articles, finished_papers = finished_papers.partition { |row| row['type'] == 'Presseartikel / Medienberichte' }
@@ -127,8 +127,8 @@ research_seminar, talks = CSV.read('data/talks.csv', headers: true)
                              .sort_by { |row| [get_year(row['date']), row['person']] }
                              .reverse
                              .partition do |row|
-  (!row['invited-by'].nil? && row['invited-by'].include?('Research Seminar')) or
-    (!row['original-title'].nil? && row['original-title'].include?('Research Seminar'))
+                               (!row['invited-by'].nil? && row['invited-by'].include?('Research Seminar')) or
+                                 (!row['original-title'].nil? && row['original-title'].include?('Research Seminar'))
 end
 
 media, talks = talks.partition { |row| row['type'] == 'Präsentation in Radio/TV' }

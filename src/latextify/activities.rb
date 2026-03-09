@@ -59,7 +59,7 @@ def parse_activities
 
   finished = CSV::Table.new(finished_arr, headers: activities.headers)
   rs       = CSV::Table.new(rs_arr,       headers: activities.headers)
-  finished = finished.delete_if { |row| TO_EXCLUDE.include?(row['Übergeordneter Typ']) }
+  finished.delete_if { |row| TO_EXCLUDE.include?(row['Übergeordneter Typ']) }
 
   generate_latex_for_activities(finished, 'data/activities.tex')
   generate_latex_for_activities(rs, 'data/rs.tex')
