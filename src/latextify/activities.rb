@@ -84,6 +84,20 @@ def generate_latex_for_activities(rows, out_filename, formatter: method(:activit
   File.write(out_filename, latex)
 end
 
+def scs_latextify(year, rows)
+  items = rows.group_by { |r| r['Übergeordneter Typ'] }.map do |title, grouped_rows|
+    cont = grouped_rows.group_by do |r|
+      by_title_date(r)
+    end.map { |title, act| build_item_for_activities(title, act) }.join("\n")
+    "\\subsubsection{#{title}}" + "
+\\begin{enumerate}
+#{cont}
+\\end{enumerate}"
+  end.join("\n")
+  "\\subsection*{#{year}}
+  #{items}"
+end
+
 def rs_latextify(year, rows)
   subsection = "\\subsection*{#{year}}"
 
@@ -102,8 +116,15 @@ def parse_activities
 
   finished = CSV::Table.new(finished_arr, headers: activities.headers)
   rs       = CSV::Table.new(rs_arr,       headers: activities.headers)
-  finished.delete_if { |row| TO_EXCLUDE.include?(row['Übergeordneter Typ']) }
+  finished = finished.select { |row| row['Übergeordneter Typ'] == 'Vortrag oder Präsentation' }
 
   generate_latex_for_activities(finished, 'data/activities.tex')
   generate_latex_for_activities(rs, 'data/rs.tex', formatter: method(:rs_latextify))
+end
+
+def parse_scs
+  scs = CSV.read('data/aktivitaeten_erweitert.csv', headers: true).select do |row|
+    TO_EXCLUDE.include? row ['Übergeordneter Typ']
+  end
+  generate_latex_for_activities(scs, 'data/scs.tex', formatter: method(:scs_latextify))
 end

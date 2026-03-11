@@ -8,6 +8,7 @@ def main
   parse_publications
   parse_activities
   parse_press
+  parse_scs
 end
 
 main
