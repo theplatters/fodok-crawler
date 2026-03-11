@@ -16,17 +16,21 @@ TO_EXCLUDE = ['Andere Gutachtertätigkeit',
               'Teilnahme an Konferenz, Workshop, ...',
               'Wissenschaftliche Gesellschaft'].freeze
 
-def build_item_for_activities(act)
-  date = Date.parse(act['Startdatum']).strftime('%d.%m.%Y')
+def build_item_for_activities(title, act)
+  start_date = Date.parse(act.first['Startdatum']).strftime('%d.%m.%Y')
   cont = [
-    act['Personen'],
-    act['Externe Personen'],
-    act['Titel'],
-    act['Title'],
-    date
+    act.map { _1['Personen'] }.join(' '),
+    act.first['Externe Personen'],
+    act.first['Titel'],
+    title[0],
+    start_date
   ].join(' ')
 
   "\t\\item #{sanitize(cont)}"
+end
+
+def by_title_date(row)
+  [row['Title'], row['Startdatum']]
 end
 
 def research_seminar_predicate(row)
@@ -35,7 +39,9 @@ end
 
 def build_subsection(type, activities)
   subsection = "\\subsection*{#{sanitize(type)}}\n"
-  items = activities.map { build_item_for_activities(_1) }.join("\n")
+  items = activities.group_by { |r| by_title_date(r) }.map do |title, act|
+    build_item_for_activities(title, act)
+  end.join("\n")
   subsection + "
 \\begin{enumerate}
 #{items}
@@ -63,7 +69,7 @@ end
 def rs_latextify(year, rows)
   subsection = "\\subsection*{#{year}}"
 
-  items = rows.map { build_item_for_activities(_1) }.join("\n")
+  items = rows.group_by { |r| by_title_date(r) }.map { |title, act| build_item_for_activities(title, act) }.join("\n")
   subsection + "
 \\begin{enumerate}
 #{items}
