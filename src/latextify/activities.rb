@@ -17,7 +17,15 @@ TO_EXCLUDE = ['Andere Gutachtertätigkeit',
               'Wissenschaftliche Gesellschaft'].freeze
 
 def build_item_for_activities(act)
-  cont = "#{act['Personen']} #{act['Externe Personen']} #{act['Titel']} #{act['Title']} #{act['Startdatum']}"
+  date = Date.parse(act['Startdatum']).strftime('%d.%m.%Y')
+  cont = [
+    act['Personen'],
+    act['Externe Personen'],
+    act['Titel'],
+    act['Title'],
+    date
+  ].join(' ')
+
   "\t\\item #{sanitize(cont)}"
 end
 
@@ -40,16 +48,27 @@ def activities_latextify(year, rows)
 
   subsection + rows.group_by { _1['Übergeordneter Typ'] }
                    .map { |k, v| build_subsection(k, v) }
-                   .join('\n')
+                   .join
 end
 
-def generate_latex_for_activities(rows, out_filename)
+def generate_latex_for_activities(rows, out_filename, formatter: method(:activities_latextify))
   rows.each do |row|
     row['Jahr'] = Date.parse(row['Startdatum']).year
   end
-  latex = group_by_year(rows, &method(:activities_latextify))
+  latex = group_by_year(rows, &formatter)
 
   File.write(out_filename, latex)
+end
+
+def rs_latextify(year, rows)
+  subsection = "\\subsection*{#{year}}"
+
+  items = rows.map { build_item_for_activities(_1) }.join("\n")
+  subsection + "
+\\begin{enumerate}
+#{items}
+\\end{enumerate}
+"
 end
 
 def parse_activities
@@ -62,5 +81,5 @@ def parse_activities
   finished.delete_if { |row| TO_EXCLUDE.include?(row['Übergeordneter Typ']) }
 
   generate_latex_for_activities(finished, 'data/activities.tex')
-  generate_latex_for_activities(rs, 'data/rs.tex')
+  generate_latex_for_activities(rs, 'data/rs.tex', formatter: method(:rs_latextify))
 end
