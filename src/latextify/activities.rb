@@ -85,17 +85,31 @@ def generate_latex_for_activities(rows, out_filename, formatter: method(:activit
 end
 
 def scs_latextify(year, rows)
-  items = rows.group_by { |r| r['Übergeordneter Typ'] }.map do |title, grouped_rows|
-    cont = grouped_rows.group_by do |r|
-      by_title_date(r)
-    end.map { |title, act| build_item_for_activities(title, act) }.join("\n")
-    "\\subsubsection{#{title}}" + "
-\\begin{enumerate}
-#{cont}
-\\end{enumerate}"
-  end.join("\n")
-  "\\subsection*{#{year}}
-  #{items}"
+  items = rows
+          .group_by { |row| row['Übergeordneter Typ'] }
+          .map do |section_title, grouped_rows|
+            content = grouped_rows
+                      .group_by { |row| by_title_date(row) }
+                      .map do |title, act|
+                        build_item_for_activities(
+                          title, act
+                        )
+            end
+                                              .join("\n")
+
+            <<~LATEX.chomp
+              \\subsubsection{#{section_title}}
+              \\begin{enumerate}
+              #{content}
+              \\end{enumerate}
+            LATEX
+          end
+    .join("\n")
+
+  <<~LATEX
+    \\subsection*{#{year}}
+    #{items}
+  LATEX
 end
 
 def rs_latextify(year, rows)
@@ -110,13 +124,14 @@ def rs_latextify(year, rows)
 end
 
 def parse_activities
-  activities = CSV.read('data/aktivitaeten_erweitert.csv', headers: true)
+  activities = CSV.read('data/aktivitaeten_erweitert.csv', headers: true).delete_if do |row|
+    row['Übergeordneter Typ'] != 'Vortrag oder Präsentation'
+  end
 
   finished_arr, rs_arr = activities.partition { |row| research_seminar_predicate(row) }
 
   finished = CSV::Table.new(finished_arr, headers: activities.headers)
   rs       = CSV::Table.new(rs_arr,       headers: activities.headers)
-  finished = finished.select { |row| row['Übergeordneter Typ'] == 'Vortrag oder Präsentation' }
 
   generate_latex_for_activities(finished, 'data/activities.tex')
   generate_latex_for_activities(rs, 'data/rs.tex', formatter: method(:rs_latextify))
@@ -133,6 +148,10 @@ def parse_scs
 
   scs['Übergeordneter Typ'] = scs['Übergeordneter Typ'].map do |el|
     el.to_s == 'Teilnahme an oder Organisation einer Veranstaltung' ? 'Organisation einer Veranstaltung' : el.to_s
+  end
+
+  scs['Titel'] = scs['Titel'].map do |el|
+    el.gsub('(Fachzeitschrift oder Schriftenreihe)', '').rstrip
   end
 
   generate_latex_for_activities(scs, 'data/scs.tex', formatter: method(:scs_latextify))
