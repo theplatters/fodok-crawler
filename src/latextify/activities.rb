@@ -123,8 +123,17 @@ def parse_activities
 end
 
 def parse_scs
-  scs = CSV.read('data/aktivitaeten_erweitert.csv', headers: true).select do |row|
-    TO_EXCLUDE.include? row ['Übergeordneter Typ']
+  scs = CSV.read('data/aktivitaeten_erweitert.csv', headers: true).delete_if do |row|
+    !TO_EXCLUDE.include? row ['Übergeordneter Typ']
   end
+
+  scs.delete_if do |row|
+    row['Übergeordneter Typ'] == 'Teilnehmer*in'
+  end
+
+  scs['Übergeordneter Typ'] = scs['Übergeordneter Typ'].map do |el|
+    el.to_s == 'Teilnahme an oder Organisation einer Veranstaltung' ? 'Organisation einer Veranstaltung' : el.to_s
+  end
+
   generate_latex_for_activities(scs, 'data/scs.tex', formatter: method(:scs_latextify))
 end
