@@ -18,3 +18,21 @@ end
 def sort_descending(arr)
   arr.sort_by { |str| [-(extract_number(str) || -1), str] }
 end
+
+def generate_latex(rows, out_filename, formatter:)
+  latex = group_by_year(rows, &formatter)
+  File.write(out_filename, latex)
+end
+
+def by_year_formatter(year, rows, &item_format)
+  subsection = "\\subsection*{#{year}}"
+
+  items = rows.map do |row|
+    item_format.call(row)
+  end.join("\n")
+
+  subsection + "
+\\begin{enumerate}
+#{items}
+\\end{enumerate}\n"
+end

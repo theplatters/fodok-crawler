@@ -160,11 +160,7 @@ def parse_activities
   generate_latex_for_activities(rs, 'data/rs.tex', formatter: method(:rs_latextify))
 end
 
-def parse_scs
-  scs = CSV.read('data/aktivitaeten_erweitert.csv', headers: true).delete_if do |row|
-    !TO_EXCLUDE.include? row ['Übergeordneter Typ']
-  end
-
+def clean_scs_data(scs)
   scs.delete_if do |row|
     row['Übergeordneter Typ'] == 'Teilnehmer*in'
   end
@@ -176,6 +172,13 @@ def parse_scs
   scs['Titel'] = scs['Titel'].map do |el|
     el.gsub('(Fachzeitschrift oder Schriftenreihe)', '').rstrip
   end
+end
+
+def parse_scs
+  scs = CSV.read('data/aktivitaeten_erweitert.csv', headers: true).delete_if do |row|
+    !TO_EXCLUDE.include? row ['Übergeordneter Typ']
+  end
+  clean_scs_data(scs)
 
   generate_latex_for_activities(scs, 'data/scs.tex', formatter: method(:scs_latextify))
 end

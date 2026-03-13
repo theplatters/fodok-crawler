@@ -3,31 +3,42 @@
 require 'csv'
 require_relative 'helper_methods'
 
-def build_item_content_for_press(item)
-  prelude = if item['Rollen der Mitwirkenden'] == 'Autor*in'
-              "#{item['Personen']}:"
-            else
-              "#{item['Personen']} zitiert in"
-            end
+def build_item_content_for_press(item); end
 
-  "#{prelude} #{item['Titel']}, #{item['Name']} #{item['Produzent/Autor']} #{item['Name Medienhaus/Outlet']} #{Date.parse(item['Datum der Veröffentlichung']).strftime('%d.%m.%Y')}"
+def build_press_item(item)
+  prelude = press_prelude(item)
+  content = press_content(item)
+
+  "\t \\item #{[prelude, content].reject(&:empty?).join(' ')}"
 end
 
-def latextify_press(year, press_articles)
-  subsection = "\\subsection*{#{year}}"
-  items = press_articles.map do |item|
-    "\t \\item #{build_item_content_for_press(item)}"
-  end.join("\n")
-
-  subsection + "
-  \\begin{enumerate}
-  #{items}
-  \\end{enumerate}\n"
+def press_prelude(item)
+  if item['Rollen der Mitwirkenden'] == 'Autor*in'
+    "#{item['Personen']}:"
+  else
+    "#{item['Personen']} zitiert in"
+  end
 end
 
-def generate_latex_for_press(press, out_filename)
-  latex = group_by_year(press, &method(:latextify_press))
-  File.write(out_filename, latex)
+def press_content(item)
+  [
+    item['Titel'],
+    item['Name'],
+    item['Produzent/Autor'],
+    item['Name Medienhaus/Outlet'],
+    formatted_press_date(item)
+  ].map(&:to_s)
+   .reject(&:empty?)
+   .join(', ')
+end
+
+def formatted_press_date(item)
+  Date.parse(item['Datum der Veröffentlichung'])
+      .strftime('%d.%m.%Y')
+end
+
+def press_year_formatter(year, rows)
+  by_year_formatter(year, rows, &method(:build_press_item))
 end
 
 PRESS_FORMAT = %w[Hybrid Print Web NN].freeze
@@ -61,6 +72,6 @@ def parse_press
   all_media['Jahr'] = all_media.map { |e| Date.parse(e['Datum der Veröffentlichung']).year }
   all_media = clean_up_data(all_media)
   press, radio = split_press_and_radio(all_media)
-  generate_latex_for_press(press, 'data/press.tex')
-  generate_latex_for_press(radio, 'data/radio.tex')
+  generate_latex(press, 'data/press.tex', formatter: method(:press_year_formatter))
+  generate_latex(radio, 'data/radio.tex', formatter: method(:press_year_formatter))
 end

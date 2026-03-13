@@ -20,37 +20,21 @@ def sort_wp_in_descending_order(publications)
   publications.sort_by! { |str| -(extract_wp_number(str['APA-Format']) || -1) }
 end
 
-def publication_latextify(year, publications)
-  subsection = "\\subsection*{#{year}}"
-  items = publications.map do |pub|
-    if pub['Links'] != ''
-      "\t \\item \\href{#{pub['Links']}}{#{sanitize(pub['APA-Format'])}}"
-    else
-      "\t \\item #{sanitize(pub['APA-Format'])}"
-    end
-  end.join("\n")
-
-  subsection + "
-\\begin{enumerate}
-#{items}
-\\end{enumerate}\n"
+def build_pub_item(pub)
+  if pub['Links'] != ''
+    "\t \\item \\href{#{pub['Links']}}{#{sanitize(pub['APA-Format'])}}"
+  else
+    "\t \\item #{sanitize(pub['APA-Format'])}"
+  end
 end
 
-def working_paper_latextify(year, publications)
-  subsection = "\\subsection*{#{year}}"
-  sort_wp_in_descending_order(publications)
-  items = publications.map do |pub|
-    if pub['Links'] != ''
-      "\t \\item \\href{#{pub['Links']}}{#{sanitize(pub['APA-Format'])}}"
-    else
-      "\t \\item #{sanitize(pub['APA-Format'])}"
-    end
-  end.join("\n")
+def publication_year_formatter(year, rows)
+  by_year_formatter(year, rows, &method(:build_pub_item))
+end
 
-  subsection + "
-\\begin{enumerate}
-#{items}
-\\end{enumerate}\n"
+def working_paper_year_formatter(year, rows)
+  sort_wp_in_descending_order(rows)
+  by_year_formatter(year, rows, &method(:build_pub_item))
 end
 
 def generate_latex_for_publications(rows, out_filename, formatter: method(:publication_latextify))
@@ -75,12 +59,22 @@ def parse_publications
   publications = strip_apa_from_link(publications)
   by_series = publications.group_by { |row| row['Serienname'] }
 
-  generate_latex_for_publications(by_series['SPACE Working Paper Series'], 'data/space_wp.tex',
-                                  formatter: method(:working_paper_latextify))
-
-  generate_latex_for_publications(by_series['ICAE Working Paper Series'], 'data/icae_wp.tex',
-                                  formatter: method(:working_paper_latextify))
-
   finished = by_series.reject { |series, _| WP_SERIES.include?(series) }.values.flatten(1)
-  generate_latex_for_publications(finished, 'data/publications.tex')
+  generate_latex(
+    by_series['SPACE Working Paper Series'],
+    'data/space_wp.tex',
+    formatter: method(:working_paper_year_formatter)
+  )
+
+  generate_latex(
+    by_series['ICAE Working Paper Series'],
+    'data/icae_wp.tex',
+    formatter: method(:working_paper_year_formatter)
+  )
+
+  generate_latex(
+    finished,
+    'data/publications.tex',
+    formatter: method(:publication_year_formatter)
+  )
 end
