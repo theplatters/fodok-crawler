@@ -9,3 +9,12 @@ def group_by_year(items, &latextify)
        .map { |year, rows| latextify.call(year, rows) }
        .join
 end
+
+def extract_wp_number(str)
+  match = str.match(/(?<=Nr\.\s)\d+/)
+  match ? match[0].to_i : nil
+end
+
+def sort_descending(arr)
+  arr.sort_by { |str| [-(extract_number(str) || -1), str] }
+end
