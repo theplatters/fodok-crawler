@@ -28,18 +28,21 @@ def build_pub_item(pub)
   end
 end
 
-def publication_year_formatter(year, rows)
-  by_year_formatter(year, rows, &method(:build_pub_item))
+def publication_year_formatter
+  by_year_formatter(
+    formatter: simple_formatter(&method(:build_pub_item))
+  )
 end
 
-def working_paper_year_formatter(year, rows)
-  sort_wp_in_descending_order(rows)
-  by_year_formatter(year, rows, &method(:build_pub_item))
-end
+def working_paper_year_formatter
+  base = simple_formatter(&method(:build_pub_item))
 
-def generate_latex_for_publications(rows, out_filename, formatter: method(:publication_latextify))
-  latex = group_by_year(rows, &formatter)
-  File.write(out_filename, latex)
+  by_year_formatter(
+    formatter: lambda do |rows|
+      sort_wp_in_descending_order(rows)
+      base.call(rows)
+    end
+  )
 end
 
 class CSV
@@ -63,18 +66,18 @@ def parse_publications
   generate_latex(
     by_series['SPACE Working Paper Series'],
     'data/space_wp.tex',
-    formatter: method(:working_paper_year_formatter)
+    formatter: working_paper_year_formatter
   )
 
   generate_latex(
     by_series['ICAE Working Paper Series'],
     'data/icae_wp.tex',
-    formatter: method(:working_paper_year_formatter)
+    formatter: working_paper_year_formatter
   )
 
   generate_latex(
     finished,
     'data/publications.tex',
-    formatter: method(:publication_year_formatter)
+    formatter: publication_year_formatter
   )
 end

@@ -37,8 +37,10 @@ def formatted_press_date(item)
       .strftime('%d.%m.%Y')
 end
 
-def press_year_formatter(year, rows)
-  by_year_formatter(year, rows, &method(:build_press_item))
+def press_year_formatter
+  by_year_formatter(
+    formatter: simple_formatter(&method(:build_press_item))
+  )
 end
 
 PRESS_FORMAT = %w[Hybrid Print Web NN].freeze
@@ -72,6 +74,6 @@ def parse_press
   all_media['Jahr'] = all_media.map { |e| Date.parse(e['Datum der Veröffentlichung']).year }
   all_media = clean_up_data(all_media)
   press, radio = split_press_and_radio(all_media)
-  generate_latex(press, 'data/press.tex', formatter: method(:press_year_formatter))
-  generate_latex(radio, 'data/radio.tex', formatter: method(:press_year_formatter))
+  generate_latex(press, 'data/press.tex', formatter: press_year_formatter)
+  generate_latex(radio, 'data/radio.tex', formatter: press_year_formatter)
 end

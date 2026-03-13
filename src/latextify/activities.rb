@@ -90,74 +90,64 @@ def build_subsection(_type, activities)
 "
 end
 
-def activities_latextify(year, rows)
-  subsection = "\\subsection*{#{year}}\n"
+def scs_latextify
+  by_year_formatter(
+    formatter:
+      group_formatter(group_by: ->(row) { row['Übergeordneter Typ'] }) do |section_title, grouped_rows|
+        content =
+          group_formatter(group_by: method(:by_title_date)) do |title, act|
+            build_item_for_scs(title, act)
+          end.call(grouped_rows)
 
-  subsection + rows.group_by { _1['Übergeordneter Typ'] }
-                   .map { |k, v| build_subsection(k, v) }
-                   .join
+        <<~LATEX
+          \\subsubsection{#{section_title}}
+          \\begin{enumerate}
+          #{content}
+          \\end{enumerate}
+        LATEX
+      end
+  )
 end
 
-def generate_latex_for_activities(rows, out_filename, formatter: method(:activities_latextify))
+def add_year(rows)
   rows.each do |row|
     row['Jahr'] = Date.parse(row['Startdatum']).year
   end
-  latex = group_by_year(rows, &formatter)
-
-  File.write(out_filename, latex)
 end
 
-def scs_latextify(year, rows)
-  items = rows
-          .group_by { |row| row['Übergeordneter Typ'] }
-          .map do |section_title, grouped_rows|
-            content = grouped_rows
-                      .group_by { |row| by_title_date(row) }
-                      .map do |title, act|
-                        build_item_for_scs(
-                          title, act
-                        )
-            end
-                                              .join("\n")
-
-            <<~LATEX.chomp
-              \\subsubsection{#{section_title}}
-              \\begin{enumerate}
-              #{content}
-              \\end{enumerate}
-            LATEX
-          end
-    .join("\n")
-
-  <<~LATEX
-    \\subsection*{#{year}}
-    #{items}
-  LATEX
+def by_year_rs
+  by_year_formatter(
+    formatter:
+      simple_formatter(
+        group_by: method(:by_title_date),
+        &method(:build_item_for_rs)
+      )
+  )
 end
 
-def rs_latextify(year, rows)
-  subsection = "\\subsection*{#{year}}"
-
-  items = rows.group_by { |r| by_title_date(r) }.map { |title, act| build_item_for_rs(title, act) }.join("\n")
-  subsection + "
-\\begin{enumerate}
-#{items}
-\\end{enumerate}
-"
+def by_year_act
+  by_year_formatter(
+    formatter:
+      simple_formatter(
+        group_by: method(:by_title_date),
+        &method(:build_item_for_activities)
+      )
+  )
 end
 
 def parse_activities
   activities = CSV.read('data/aktivitaeten_erweitert.csv', headers: true).delete_if do |row|
     row['Übergeordneter Typ'] != 'Vortrag oder Präsentation'
   end
+  add_year(activities)
 
   finished_arr, rs_arr = activities.partition { |row| research_seminar_predicate(row) }
 
   finished = CSV::Table.new(finished_arr, headers: activities.headers)
   rs       = CSV::Table.new(rs_arr,       headers: activities.headers)
 
-  generate_latex_for_activities(finished, 'data/activities.tex')
-  generate_latex_for_activities(rs, 'data/rs.tex', formatter: method(:rs_latextify))
+  generate_latex(finished, 'data/activities.tex', formatter: by_year_act)
+  generate_latex(rs, 'data/rs.tex', formatter: by_year_rs)
 end
 
 def clean_scs_data(scs)
@@ -172,6 +162,7 @@ def clean_scs_data(scs)
   scs['Titel'] = scs['Titel'].map do |el|
     el.gsub('(Fachzeitschrift oder Schriftenreihe)', '').rstrip
   end
+  add_year(scs)
 end
 
 def parse_scs
@@ -180,5 +171,5 @@ def parse_scs
   end
   clean_scs_data(scs)
 
-  generate_latex_for_activities(scs, 'data/scs.tex', formatter: method(:scs_latextify))
+  generate_latex(scs, 'data/scs.tex', formatter: scs_latextify)
 end
