@@ -39,6 +39,29 @@ def build_persons(act)
 end
 
 def build_item_for_activities(title, act)
+  held_at = !act.first['Title'].to_s.empty? || act.first['Title'] == act.first['Titel'] ? "gehalten bei #{act.first['Title']}" : ''
+
+  cont = [
+    build_persons(act),
+    title[0],
+    held_at,
+    Date.parse(act.first['Startdatum']).strftime('%d.%m.%Y')
+  ].reject(&:empty?).join(' ')
+
+  "\t\\item #{sanitize(cont)}"
+end
+
+def build_item_for_rs(title, act)
+  cont = [
+    build_persons(act),
+    title[0],
+    Date.parse(act.first['Startdatum']).strftime('%d.%m.%Y')
+  ].reject(&:empty?).join(' ')
+
+  "\t\\item #{sanitize(cont)}"
+end
+
+def build_item_for_scs(title, act)
   cont = [
     build_persons(act),
     title[0],
@@ -91,7 +114,7 @@ def scs_latextify(year, rows)
             content = grouped_rows
                       .group_by { |row| by_title_date(row) }
                       .map do |title, act|
-                        build_item_for_activities(
+                        build_item_for_scs(
                           title, act
                         )
             end
@@ -115,7 +138,7 @@ end
 def rs_latextify(year, rows)
   subsection = "\\subsection*{#{year}}"
 
-  items = rows.group_by { |r| by_title_date(r) }.map { |title, act| build_item_for_activities(title, act) }.join("\n")
+  items = rows.group_by { |r| by_title_date(r) }.map { |title, act| build_item_for_rs(title, act) }.join("\n")
   subsection + "
 \\begin{enumerate}
 #{items}
