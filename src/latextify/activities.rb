@@ -135,11 +135,34 @@ def by_year_act
   )
 end
 
-def parse_activities
-  activities = CSV.read('data/aktivitaeten_erweitert.csv', headers: true).delete_if do |row|
+def clean_up_activities_data(activities)
+  activities.delete_if do |row|
     row['Übergeordneter Typ'] != 'Vortrag oder Präsentation'
   end
+
+  activities['Personen'] = activities['Personen'].map do |r|
+    r.to_s.split('//').map do |name|
+      last, first = name.strip.split(/\s+/, 2)
+      "#{last} #{first[0]}."
+    end.join(', ')
+  end
+
+  activities['Externe Person'] = activities['Externe Person'].map do |r|
+    r.to_s.split('//').map do |name|
+      last, first = name.strip.split(/\s+/, 2)
+      "#{last} #{first[0]}."
+    end.join(', ')
+  end
   add_year(activities)
+
+  activities.delete_if do |r|
+    in_2026?(r)
+  end
+end
+
+def parse_activities
+  activities = CSV.read('data/aktivitaeten_erweitert.csv', headers: true)
+  clean_up_activities_data(activities)
 
   finished_arr, rs_arr = activities.partition { |row| research_seminar_predicate(row) }
 
@@ -151,8 +174,27 @@ def parse_activities
 end
 
 def clean_scs_data(scs)
+  add_year(scs)
   scs.delete_if do |row|
     row['Übergeordneter Typ'] == 'Teilnehmer*in'
+  end
+
+  scs.delete_if do |r|
+    in_2026?(r)
+  end
+
+  scs['Personen'] = scs['Personen'].map do |r|
+    r.to_s.split('//').map do |name|
+      last, first = name.strip.split(/\s+/, 2)
+      "#{last} #{first[0]}."
+    end.join(', ')
+  end
+
+  scs['Externe Person'] = scs['Externe Person'].map do |r|
+    r.to_s.split('//').map do |name|
+      last, first = name.strip.split(/\s+/, 2)
+      "#{last} #{first[0]}."
+    end.join(', ')
   end
 
   scs['Übergeordneter Typ'] = scs['Übergeordneter Typ'].map do |el|
@@ -162,7 +204,6 @@ def clean_scs_data(scs)
   scs['Titel'] = scs['Titel'].map do |el|
     el.gsub('(Fachzeitschrift oder Schriftenreihe)', '').rstrip
   end
-  add_year(scs)
 end
 
 def parse_scs

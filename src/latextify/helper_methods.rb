@@ -4,6 +4,14 @@ def sanitize(string)
   string&.gsub(/([&%$#_{}^\\])/, '\\\\\1')&.gsub(/"(.+)"/, '\\glqq \1\\grqq{}')&.gsub(/ - /, ' -- ')
 end
 
+def group_by_type(&latextify)
+  lambda do |items|
+    items.group_by { |row| row['Jahr'] }
+         .map { |year, rows| latextify.call(year, rows) }
+         .join
+  end
+end
+
 def group_by_year(&latextify)
   lambda do |items|
     items.group_by { |row| row['Jahr'] }
@@ -24,6 +32,10 @@ end
 def generate_latex(rows, out_filename, formatter:)
   latex = group_by_year(&formatter).call(rows)
   File.write(out_filename, latex)
+end
+
+def in_2026?(row)
+  row['Jahr'].to_i == 2026
 end
 
 def simple_formatter(group_by: nil, &item_format)
