@@ -39,7 +39,7 @@ end
 
 def press_year_formatter
   by_year_formatter(
-    formatter: simple_formatter(&method(:build_press_item))
+    &simple_formatter(&method(:build_press_item))
   )
 end
 
@@ -60,13 +60,14 @@ def split_press_and_radio(all_media)
 end
 
 def clean_up_data(all_media)
-  all_media['Personen'] = all_media['Personen'].map do |r|
-    r.gsub(' //', ',')
-  end
+  clean_up_names(all_media, columns: ['Personen'])
   all_media['Produzent/Autor'] = all_media['Produzent/Autor'].map do |r|
     r.to_s.rstrip
   end
-  all_media
+
+  CSV::Table.new(all_media.reject do |r|
+    in_2026?(r)
+  end, headers: all_media.headers)
 end
 
 def parse_press
