@@ -2,95 +2,97 @@
 
 require 'csv'
 require_relative 'helper_methods'
-require 'uri'
+
+WP_SERIES = ['ICAE Working Paper Series', 'SPACE Working Paper Series'].freeze
 
 def strip_apa_from_link(all_papers)
   url_regex = %r{https?://\S+}
 
   all_papers.each do |row|
-    urls = row['APA-Format'].scan(url_regex)
+    urls = row[Columns::APA_FORMAT].scan(url_regex)
     row['Links'] = urls.join(', ')
-    row['APA-Format'] = row['APA-Format'].gsub(url_regex, '').strip
+    row[Columns::APA_FORMAT] = row[Columns::APA_FORMAT].gsub(url_regex, '').strip
   end
 
   all_papers
 end
 
-def sort_wp_in_descending_order(publications)
-  publications.sort_by! { |str| -(extract_wp_number(str['APA-Format']) || -1) }
+def sort_wp_in_descending_order!(publications)
+  publications.sort_by! { |row| -(extract_wp_number(row[Columns::APA_FORMAT]) || -1) }
 end
 
 def build_pub_item(pub)
-  if pub['Links'] != ''
-    "\t \\item \\href{#{pub['Links']}}{#{sanitize(pub['APA-Format'])}}"
+  sanitized_apa = sanitize(pub[Columns::APA_FORMAT])
+  if pub['Links'] && !pub['Links'].empty?
+    "\t \\item \\href{#{pub['Links']}}{#{sanitized_apa}}"
   else
-    "\t \\item #{sanitize(pub['APA-Format'])}"
+    "\t \\item #{sanitized_apa}"
   end
 end
 
 def publication_year_formatter
-  by_year_formatter(
-    &simple_formatter(&method(:build_pub_item))
-  )
+  by_year_formatter(&simple_formatter(&method(:build_pub_item)))
 end
 
 def working_paper_year_formatter
   base = simple_formatter(&method(:build_pub_item))
 
   by_year_formatter do |rows|
-    sort_wp_in_descending_order(rows)
+    sort_wp_in_descending_order!(rows)
     base.call(rows)
-  end
-end
-
-class CSV
-  class Table
-    def sort_by_year_apa
-      sort_by do |row|
-        [-row['Jahr'].to_i, row['APA-Format'].to_s]
-      end
-    end
-  end
-end
-
-WP_SERIES = ['ICAE Working Paper Series', 'SPACE Working Paper Series'].freeze
-
-def clean_up_publications(publications)
-  publications = strip_apa_from_link(publications)
-  publications.reject do |r|
-    in_2026?(r)
   end
 end
 
 def split_into_wp(publications)
   by_series = publications.group_by { |row| row['Serienname'] }
   published = by_series.reject { |series, _| WP_SERIES.include?(series) }.values.flatten(1)
-  [by_series['SPACE Working Paper Series'], by_series['ICAE Working Paper Series'], published]
-end
 
-def generate_latex_for_publications(space_wp, icae_wp, published, blog)
-  {
-    'data/space_wp.tex' => [space_wp, working_paper_year_formatter],
-    'data/icae_wp.tex' => [icae_wp, working_paper_year_formatter],
-    'data/publications.tex' => [published, publication_year_formatter],
-    'data/blog.tex' => [blog, publication_year_formatter]
-  }.each do |path, (items, formatter)|
-    generate_latex(items, path, formatter: formatter)
-  end
+  [by_series['SPACE Working Paper Series'] || [],
+   by_series['ICAE Working Paper Series'] || [],
+   published]
 end
 
 def split_into_blog(published)
   published.each do |row|
-    row['Blog'] = row['APA-Format'].include?('Blog Beitrag')
-    row['APA-Format'] = row['APA-Format'].gsub('Blog Beitrag', '').strip
+    row['Blog'] = row[Columns::APA_FORMAT].include?('Blog Beitrag')
+    row[Columns::APA_FORMAT] = row[Columns::APA_FORMAT].gsub('Blog Beitrag', '').strip
   end
   published.partition { |row| row['Blog'] }
 end
 
-def parse_publications
-  publications = CSV.read('data/publikationen.csv', headers: true).sort_by_year_apa
-  publications = clean_up_publications(publications)
-  space_wp, icae_wp, published = split_into_wp(publications)
+def generate_latex_for_publications(space_wp, icae_wp, published, blog)
+  configs = {
+    'data/space_wp.tex' => [space_wp, working_paper_year_formatter],
+    'data/icae_wp.tex' => [icae_wp, working_paper_year_formatter],
+    'data/publications.tex' => [published, publication_year_formatter],
+    'data/blog.tex' => [blog, publication_year_formatter]
+  }
+
+  configs.each do |path, (items, formatter)|
+    generate_latex(items, path, formatter: formatter) unless items.empty?
+  end
+end
+
+def clean_and_sort_publications(data)
+  # Sort by year descending, then APA format
+  sorted_rows = data.sort_by { |r| [-r[Columns::YEAR].to_i, r[Columns::APA_FORMAT].to_s] }
+  sorted_table = CSV::Table.new(sorted_rows)
+
+  strip_apa_from_link(sorted_table)
+  sorted_table.reject { |r| in_2026?(r) }
+end
+
+def split_all_publications(data)
+  space_wp, icae_wp, published = split_into_wp(data)
   blog, published = split_into_blog(published)
-  generate_latex_for_publications(space_wp, icae_wp, published, blog)
+  [space_wp, icae_wp, published, blog]
+end
+
+def parse_publications
+  process_latex_pipeline(
+    'data/publikationen.csv',
+    clean: method(:clean_and_sort_publications),
+    split: method(:split_all_publications),
+    generate: ->(args) { generate_latex_for_publications(*args) }
+  )
 end

@@ -3,8 +3,6 @@
 require 'csv'
 require_relative 'helper_methods'
 
-def build_item_content_for_press(item); end
-
 def build_press_item(item)
   prelude = press_prelude(item)
   content = press_content(item)
@@ -13,19 +11,19 @@ def build_press_item(item)
 end
 
 def press_prelude(item)
-  if item['Rollen der Mitwirkenden'] == 'Autor*in'
-    "#{item['Personen']}:"
+  if item[Columns::ROLE] == 'Autor*in'
+    "#{item[Columns::PERSONS]}:"
   else
-    "#{item['Personen']} zitiert in"
+    "#{item[Columns::PERSONS]} zitiert in"
   end
 end
 
 def press_content(item)
   [
-    item['Titel'],
-    item['Name'],
-    item['Produzent/Autor'],
-    item['Name Medienhaus/Outlet'],
+    item[Columns::TITLE],
+    item[Columns::NAME],
+    item[Columns::PRODUCER],
+    item[Columns::MEDIA_HOUSE],
     formatted_press_date(item)
   ].map(&:to_s)
    .reject(&:empty?)
@@ -33,7 +31,7 @@ def press_content(item)
 end
 
 def formatted_press_date(item)
-  Date.parse(item['Datum der Veröffentlichung'])
+  Date.parse(item[Columns::PUBLICATION_DATE])
       .strftime('%d.%m.%Y')
 end
 
@@ -46,7 +44,7 @@ end
 PRESS_FORMAT = %w[Hybrid Print Web NN].freeze
 
 def press_format?(row)
-  PRESS_FORMAT.include?(row['Medienformat'])
+  PRESS_FORMAT.include?(row[Columns::MEDIA_FORMAT])
 end
 
 def split_press_and_radio(all_media)
@@ -59,22 +57,27 @@ def split_press_and_radio(all_media)
   [press, radio]
 end
 
-def clean_up_data(all_media)
-  clean_up_names(all_media, columns: ['Personen'])
-  all_media['Produzent/Autor'] = all_media['Produzent/Autor'].map do |r|
+def clean_press_data(all_media)
+  clean_names(all_media, columns: [Columns::PERSONS])
+
+  all_media[Columns::YEAR] = all_media.map { |e| Date.parse(e[Columns::PUBLICATION_DATE]).year }
+  all_media[Columns::PRODUCER] = all_media[Columns::PRODUCER].map do |r|
     r.to_s.rstrip
   end
 
-  CSV::Table.new(all_media.reject do |r|
+  all_media.delete_if do |r|
     in_2026?(r)
-  end, headers: all_media.headers)
+  end
 end
 
 def parse_press
-  all_media = CSV.read('data/presse.csv', headers: true)
-  all_media['Jahr'] = all_media.map { |e| Date.parse(e['Datum der Veröffentlichung']).year }
-  all_media = clean_up_data(all_media)
-  press, radio = split_press_and_radio(all_media)
-  generate_latex(press, 'data/press.tex', formatter: press_year_formatter)
-  generate_latex(radio, 'data/radio.tex', formatter: press_year_formatter)
+  process_latex_pipeline(
+    'data/presse.csv',
+    clean: method(:clean_press_data),
+    split: method(:split_press_and_radio),
+    generate: lambda { |(press, radio)|
+      generate_latex(press, 'data/press.tex', formatter: press_year_formatter)
+      generate_latex(radio, 'data/radio.tex', formatter: press_year_formatter)
+    }
+  )
 end

@@ -21,31 +21,27 @@ TO_EXCLUDE = ['Andere Gutachtertätigkeit',
               'Gutachtertätigkeiten',
               'Wissenschaftliche Gesellschaft'].freeze
 
-def sort_by_organisator_then_alphabetically(acts)
-  acts.sort do |a, b|
-    next 1 if a['Rollen der Mitwirkenden'] == 'Moderator*in' && b['Rollen der Mitwirkenden'] != 'Moderator*in'
-    next 1 if a['Rollen der Mitwirkenden'] == 'Vortragende*r' && b['Rollen der Mitwirkenden'] != 'Vortragende*r'
-
-    a['Personen'].to_s <=> b['Personen'].to_s
-  end
-  acts
-end
-
 def build_persons(act)
-  extern_person = act.map { _1['Externe Person'] }.join(' ').strip
-  persons = act.map { _1['Personen'] }.join(' ').strip
+  extern_person = act.map { _1[Columns::EXTERNAL_PERSON] }.join(' ').strip
+  persons = act.map { _1[Columns::PERSONS] }.join(' ').strip
 
   "#{persons}#{extern_person.empty? ? '' : " #{extern_person}"}:"
 end
 
-def build_item_for_activities(title, act)
-  held_at = !act.first['Title'].to_s.empty? || act.first['Title'] == act.first['Titel'] ? "gehalten bei #{act.first['Title']}" : ''
+def held_at(act)
+  if !act.first['Veranstaltung'].to_s.empty? || act.first['Veranstaltung'] == act.first[Columns::TITLE]
+    "gehalten bei #{act.first['Veranstaltung']}"
+  else
+    "gehalten bei #{act.first['Externe Organisation']}"
+  end
+end
 
+def build_item_for_activities(title, act)
   cont = [
     build_persons(act),
     title[0],
-    held_at,
-    Date.parse(act.first['Startdatum']).strftime('%d.%m.%Y')
+    held_at(act),
+    format_date(act.first[Columns::START_DATE])
   ].reject(&:empty?).join(' ')
 
   "\t\\item #{sanitize(cont)}"
@@ -55,89 +51,71 @@ def build_item_for_rs(title, act)
   cont = [
     build_persons(act),
     title[0],
-    Date.parse(act.first['Startdatum']).strftime('%d.%m.%Y')
+    format_date(act.first[Columns::START_DATE])
   ].reject(&:empty?).join(' ')
 
   "\t\\item #{sanitize(cont)}"
 end
 
-def build_item_for_scs(title, act)
-  cont = [
+# Merged build_item_for_scs and build_item_for_scs_no_title
+def build_scs_item(title, act, include_event: false)
+  parts = [
     build_persons(act),
-    title[0],
-    act.first['Title'],
-    Date.parse(act.first['Startdatum']).strftime('%d.%m.%Y')
-  ].join(' ')
+    title[0]
+  ]
 
-  "\t\\item #{sanitize(cont)}"
-end
+  parts << act.first['Veranstaltung'] if include_event
 
-def build_item_for_scs_no_title(title, act)
-  cont = [
-    build_persons(act),
-    title[0],
-    Date.parse(act.first['Startdatum']).strftime('%d.%m.%Y')
-  ].join(' ')
+  parts << format_date(act.first[Columns::START_DATE])
 
-  "\t\\item #{sanitize(cont)}"
+  "\t\\item #{sanitize(parts.compact.join(' '))}"
 end
 
 def by_title_date(row)
-  [row['Titel'], row['Startdatum']]
+  [row[Columns::TITLE], row[Columns::START_DATE]]
 end
 
 def research_seminar_predicate(row)
-  !(row['Title'].to_s.include? 'Research' and row['Title'].to_s.include? 'ICAE')
+  !(row['Veranstaltung'].to_s.include? 'Research' and row['Veranstaltung'].to_s.include? 'ICAE')
 end
 
-def build_subsection(_type, activities)
-  items = activities.group_by { |r| by_title_date(r) }.map do |title, act|
-    build_item_for_activities(title, act)
-  end.join("\n")
-  "\\begin{enumerate}
-#{items}
-\\end{enumerate}
-"
+def choose_item_formatter(section_title)
+  if section_title == 'Organisation von Veranstaltung'
+    method(:build_scs_item, include_event: true)
+  else
+    method(:build_scs_item)
+  end
+end
+
+def build_content_for_scs(section_title, grouped_rows)
+  item_formatter = choose_item_formatter(section_title)
+  formatter = by_year_formatter(
+    &simple_formatter(
+      group_by: method(:by_title_date),
+      &item_formatter
+    )
+  )
+  group_by_year(&formatter).call(grouped_rows)
 end
 
 def scs_latextify
   group_formatter(
-    group_by: ->(row) { row['Übergeordneter Typ'] }
+    group_by: ->(row) { row[Columns::TYPE] }
   ) do |section_title, grouped_rows|
-    content = group_by_year do |year, year_rows|
-      items = group_formatter(group_by: method(:by_title_date)) do |title, act|
-        if section_title == 'Organisation von Veranstaltung'
-
-          build_item_for_scs(title, act)
-
-        else
-
-          build_item_for_scs_no_title(title, act)
-        end
-      end.call(year_rows)
-
-      <<~LATEX
-        \\subsection*{#{year}}
-        \\begin{enumerate}
-        #{items}
-        \\end{enumerate}
-      LATEX
-    end.call(grouped_rows)
-
     <<~LATEX
       \\subsubsection{#{section_title}}
-      #{content}
+      #{build_content_for_scs(section_title, grouped_rows)}
     LATEX
   end
 end
 
 def add_year(rows)
   rows.each do |row|
-    row['Jahr'] = Date.parse(row['Startdatum']).year
+    row[Columns::YEAR] = Date.parse(row[Columns::START_DATE]).year
   end
 end
 
-def by_year_rs
+def research_seminar_year_formatter
   by_year_formatter(
     &simple_formatter(
       group_by: method(:by_title_date),
@@ -146,7 +124,7 @@ def by_year_rs
   )
 end
 
-def by_year_act
+def activities_year_formatter
   by_year_formatter(
     &simple_formatter(
       group_by: method(:by_title_date),
@@ -155,66 +133,75 @@ def by_year_act
   )
 end
 
-def clean_up_activities_data(activities)
+def clean_activities_data(activities)
   activities.delete_if do |row|
-    row['Übergeordneter Typ'] != 'Vortrag oder Präsentation'
+    row[Columns::TYPE] != 'Vortrag oder Präsentation'
   end
-
-  activities['Titel'] = activities['Titel'].map do |titel|
-    titel.gsub(/(Externe Organisation)/, '')
-  end
-
-  clean_up_names(activities)
-
-  add_year(activities)
-
-  activities.delete_if do |r|
-    in_2026?(r)
-  end
-end
-
-def parse_activities
-  activities = CSV.read('data/aktivitaeten_erweitert.csv', headers: true)
-
-  clean_up_activities_data(activities)
-
-  finished, rs = activities.partition { |row| research_seminar_predicate(row) }
-
-  generate_latex(finished, 'data/activities.tex', formatter: by_year_act)
-  generate_latex(rs, 'data/rs.tex', formatter: by_year_rs)
 end
 
 def clean_scs_data(scs)
-  add_year(scs)
-
-  scs['Titel'] = scs['Titel'].map do |titel|
-    titel.gsub('(Externe Organisation)', '')
-  end
-
-  scs.delete_if do |row|
-    row['Übergeordneter Typ'] == 'Teilnehmer*in'
-  end
-
-  scs.delete_if do |r|
-    in_2026?(r)
-  end
-
-  clean_up_names(scs)
-
-  scs['Übergeordneter Typ'] = scs['Übergeordneter Typ'].map do |el|
+  scs[Columns::TYPE] = scs[Columns::TYPE].map do |el|
     el.to_s == 'Teilnahme an oder Organisation einer Veranstaltung' ? 'Organisation einer Veranstaltung' : el.to_s
   end
 
-  scs['Titel'] = scs['Titel'].map do |el|
+  scs[Columns::TITLE] = scs[Columns::TITLE].map do |el|
     el.gsub('(Fachzeitschrift oder Schriftenreihe)', '').rstrip
   end
 end
 
-def parse_scs
-  scs = CSV.read('data/aktivitaeten_erweitert.csv', headers: true).delete_if do |row|
-    !TO_EXCLUDE.include? row ['Übergeordneter Typ']
+def clean_common_activities_data(data)
+  data[Columns::TITLE] = data[Columns::TITLE].map do |title|
+    title.gsub('(Externe Organisation)', '')
   end
-  clean_scs_data(scs)
 
-  generate_latex(scs, 'data/scs.tex', formatter: scs_latextify, group_by_year: false)
+  data.delete_if { |row| row[Columns::TYPE] == 'Teilnehmer*in' }
+
+  clean_names(data)
+  add_year(data)
+  data.delete_if { |row| in_2026?(row) }
+
+  data
+end
+
+def clean_activities(data)
+  clean_common_activities_data(data)
+  clean_activities_data(data)
+  data
+end
+
+def split_activities(data)
+  data.partition { |row| research_seminar_predicate(row) }
+end
+
+def generate_activities_latex(finished, research_seminars)
+  generate_latex(finished, 'data/activities.tex', formatter: activities_year_formatter)
+  generate_latex(research_seminars, 'data/rs.tex', formatter: research_seminar_year_formatter)
+end
+
+def clean_scs(data)
+  data.delete_if { |row| !TO_EXCLUDE.include?(row[Columns::TYPE]) }
+  clean_common_activities_data(data)
+  clean_scs_data(data)
+  data
+end
+
+def generate_scs_latex(data)
+  generate_latex(data, 'data/scs.tex', formatter: scs_latextify, group_by_year: false)
+end
+
+def parse_activities
+  process_latex_pipeline(
+    'data/aktivitaeten_erweitert.csv',
+    clean: method(:clean_activities),
+    split: method(:split_activities),
+    generate: ->((finished, rs)) { generate_activities_latex(finished, rs) }
+  )
+end
+
+def parse_scs
+  process_latex_pipeline(
+    'data/aktivitaeten_erweitert.csv',
+    clean: method(:clean_scs),
+    generate: method(:generate_scs_latex)
+  )
 end
