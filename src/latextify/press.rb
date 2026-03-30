@@ -57,8 +57,8 @@ def split_press_and_radio(all_media)
   [press, radio]
 end
 
-def clean_up_data(all_media)
-  clean_up_names(all_media, columns: [Columns::PERSONS])
+def clean_press_data(all_media)
+  clean_names(all_media, columns: [Columns::PERSONS])
 
   all_media[Columns::YEAR] = all_media.map { |e| Date.parse(e[Columns::PUBLICATION_DATE]).year }
   all_media[Columns::PRODUCER] = all_media[Columns::PRODUCER].map do |r|
@@ -73,7 +73,7 @@ end
 def parse_press
   process_latex_pipeline(
     'data/presse.csv',
-    clean: method(:clean_up_data),
+    clean: method(:clean_press_data),
     split: method(:split_press_and_radio),
     generate: lambda { |(press, radio)|
       generate_latex(press, 'data/press.tex', formatter: press_year_formatter)

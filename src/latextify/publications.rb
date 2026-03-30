@@ -43,11 +43,6 @@ def working_paper_year_formatter
   end
 end
 
-def clean_up_publications(publications)
-  publications = strip_apa_from_link(publications)
-  publications.reject { |r| in_2026?(r) }
-end
-
 def split_into_wp(publications)
   by_series = publications.group_by { |row| row['Serienname'] }
   published = by_series.reject { |series, _| WP_SERIES.include?(series) }.values.flatten(1)

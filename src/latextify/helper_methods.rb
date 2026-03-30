@@ -92,7 +92,7 @@ def shorten_first_name(name)
   first ? "#{last} #{first[0]}." : last
 end
 
-def clean_up_names(rows, columns: ['Personen', 'Externe Person'])
+def clean_names(rows, columns: ['Personen', 'Externe Person'])
   columns.each do |col|
     next unless rows.headers.include?(col)
 

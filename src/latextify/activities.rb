@@ -115,7 +115,7 @@ def add_year(rows)
   end
 end
 
-def by_year_rs
+def research_seminar_year_formatter
   by_year_formatter(
     &simple_formatter(
       group_by: method(:by_title_date),
@@ -124,7 +124,7 @@ def by_year_rs
   )
 end
 
-def by_year_act
+def activities_year_formatter
   by_year_formatter(
     &simple_formatter(
       group_by: method(:by_title_date),
@@ -133,7 +133,7 @@ def by_year_act
   )
 end
 
-def clean_up_activities_data(activities)
+def clean_activities_data(activities)
   activities.delete_if do |row|
     row[Columns::TYPE] != 'Vortrag oder Präsentation'
   end
@@ -149,14 +149,14 @@ def clean_scs_data(scs)
   end
 end
 
-def clean_up(data)
+def clean_common_activities_data(data)
   data[Columns::TITLE] = data[Columns::TITLE].map do |title|
     title.gsub('(Externe Organisation)', '')
   end
 
   data.delete_if { |row| row[Columns::TYPE] == 'Teilnehmer*in' }
 
-  clean_up_names(data)
+  clean_names(data)
   add_year(data)
   data.delete_if { |row| in_2026?(row) }
 
@@ -164,8 +164,8 @@ def clean_up(data)
 end
 
 def clean_activities(data)
-  clean_up(data)
-  clean_up_activities_data(data)
+  clean_common_activities_data(data)
+  clean_activities_data(data)
   data
 end
 
@@ -174,13 +174,13 @@ def split_activities(data)
 end
 
 def generate_activities_latex(finished, research_seminars)
-  generate_latex(finished, 'data/activities.tex', formatter: by_year_act)
-  generate_latex(research_seminars, 'data/rs.tex', formatter: by_year_rs)
+  generate_latex(finished, 'data/activities.tex', formatter: activities_year_formatter)
+  generate_latex(research_seminars, 'data/rs.tex', formatter: research_seminar_year_formatter)
 end
 
 def clean_scs(data)
   data.delete_if { |row| !TO_EXCLUDE.include?(row[Columns::TYPE]) }
-  clean_up(data)
+  clean_common_activities_data(data)
   clean_scs_data(data)
   data
 end
