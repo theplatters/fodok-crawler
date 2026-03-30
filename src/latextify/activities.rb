@@ -39,7 +39,7 @@ def build_persons(act)
 end
 
 def build_item_for_activities(title, act)
-  held_at = !act.first['Title'].to_s.empty? || act.first['Title'] == act.first['Titel'] ? "gehalten bei #{act.first['Title']}" : ''
+  held_at = !act.first['Veranstaltung'].to_s.empty? || act.first['Veranstaltung'] == act.first['Titel'] ? "gehalten bei #{act.first['Veranstaltung']}" : "gehalten bei #{act.first['Externe Organisation']}"
 
   cont = [
     build_persons(act),
@@ -65,7 +65,7 @@ def build_item_for_scs(title, act)
   cont = [
     build_persons(act),
     title[0],
-    act.first['Title'],
+    act.first['Veranstaltung'],
     Date.parse(act.first['Startdatum']).strftime('%d.%m.%Y')
   ].join(' ')
 
@@ -87,7 +87,7 @@ def by_title_date(row)
 end
 
 def research_seminar_predicate(row)
-  !(row['Title'].to_s.include? 'Research' and row['Title'].to_s.include? 'ICAE')
+  !(row['Veranstaltung'].to_s.include? 'Research' and row['Veranstaltung'].to_s.include? 'ICAE')
 end
 
 def build_subsection(_type, activities)
