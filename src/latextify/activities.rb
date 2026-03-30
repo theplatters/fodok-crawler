@@ -72,6 +72,16 @@ def build_item_for_scs(title, act)
   "\t\\item #{sanitize(cont)}"
 end
 
+def build_item_for_scs_no_title(title, act)
+  cont = [
+    build_persons(act),
+    title[0],
+    Date.parse(act.first['Startdatum']).strftime('%d.%m.%Y')
+  ].join(' ')
+
+  "\t\\item #{sanitize(cont)}"
+end
+
 def by_title_date(row)
   [row['Titel'], row['Startdatum']]
 end
@@ -91,22 +101,34 @@ def build_subsection(_type, activities)
 end
 
 def scs_latextify
-  by_year_formatter(
-    formatter:
-      group_formatter(group_by: ->(row) { row['Übergeordneter Typ'] }) do |section_title, grouped_rows|
-        content =
-          group_formatter(group_by: method(:by_title_date)) do |title, act|
-            build_item_for_scs(title, act)
-          end.call(grouped_rows)
+  group_formatter(
+    group_by: ->(row) { row['Übergeordneter Typ'] }
+  ) do |section_title, grouped_rows|
+    content = group_by_year do |year, year_rows|
+      items = group_formatter(group_by: method(:by_title_date)) do |title, act|
+        if section_title == 'Organisation von Veranstaltung'
 
-        <<~LATEX
-          \\subsubsection{#{section_title}}
-          \\begin{enumerate}
-          #{content}
-          \\end{enumerate}
-        LATEX
-      end
-  )
+          build_item_for_scs(title, act)
+
+        else
+
+          build_item_for_scs_no_title(title, act)
+        end
+      end.call(year_rows)
+
+      <<~LATEX
+        \\subsection*{#{year}}
+        \\begin{enumerate}
+        #{items}
+        \\end{enumerate}
+      LATEX
+    end.call(grouped_rows)
+
+    <<~LATEX
+      \\subsubsection{#{section_title}}
+      #{content}
+    LATEX
+  end
 end
 
 def add_year(rows)
@@ -117,21 +139,19 @@ end
 
 def by_year_rs
   by_year_formatter(
-    formatter:
-      simple_formatter(
-        group_by: method(:by_title_date),
-        &method(:build_item_for_rs)
-      )
+    &simple_formatter(
+      group_by: method(:by_title_date),
+      &method(:build_item_for_rs)
+    )
   )
 end
 
 def by_year_act
   by_year_formatter(
-    formatter:
-      simple_formatter(
-        group_by: method(:by_title_date),
-        &method(:build_item_for_activities)
-      )
+    &simple_formatter(
+      group_by: method(:by_title_date),
+      &method(:build_item_for_activities)
+    )
   )
 end
 
@@ -140,19 +160,12 @@ def clean_up_activities_data(activities)
     row['Übergeordneter Typ'] != 'Vortrag oder Präsentation'
   end
 
-  activities['Personen'] = activities['Personen'].map do |r|
-    r.to_s.split('//').map do |name|
-      last, first = name.strip.split(/\s+/, 2)
-      "#{last} #{first[0]}."
-    end.join(', ')
+  activities['Titel'] = activities['Titel'].map do |titel|
+    titel.gsub('(Externe Organisation)')
   end
 
-  activities['Externe Person'] = activities['Externe Person'].map do |r|
-    r.to_s.split('//').map do |name|
-      last, first = name.strip.split(/\s+/, 2)
-      "#{last} #{first[0]}."
-    end.join(', ')
-  end
+  clean_up_names(activities)
+
   add_year(activities)
 
   activities.delete_if do |r|
@@ -162,12 +175,10 @@ end
 
 def parse_activities
   activities = CSV.read('data/aktivitaeten_erweitert.csv', headers: true)
+
   clean_up_activities_data(activities)
 
-  finished_arr, rs_arr = activities.partition { |row| research_seminar_predicate(row) }
-
-  finished = CSV::Table.new(finished_arr, headers: activities.headers)
-  rs       = CSV::Table.new(rs_arr,       headers: activities.headers)
+  finished, rs = activities.partition { |row| research_seminar_predicate(row) }
 
   generate_latex(finished, 'data/activities.tex', formatter: by_year_act)
   generate_latex(rs, 'data/rs.tex', formatter: by_year_rs)
@@ -175,6 +186,7 @@ end
 
 def clean_scs_data(scs)
   add_year(scs)
+
   scs.delete_if do |row|
     row['Übergeordneter Typ'] == 'Teilnehmer*in'
   end
@@ -183,19 +195,7 @@ def clean_scs_data(scs)
     in_2026?(r)
   end
 
-  scs['Personen'] = scs['Personen'].map do |r|
-    r.to_s.split('//').map do |name|
-      last, first = name.strip.split(/\s+/, 2)
-      "#{last} #{first[0]}."
-    end.join(', ')
-  end
-
-  scs['Externe Person'] = scs['Externe Person'].map do |r|
-    r.to_s.split('//').map do |name|
-      last, first = name.strip.split(/\s+/, 2)
-      "#{last} #{first[0]}."
-    end.join(', ')
-  end
+  clean_up_names(scs)
 
   scs['Übergeordneter Typ'] = scs['Übergeordneter Typ'].map do |el|
     el.to_s == 'Teilnahme an oder Organisation einer Veranstaltung' ? 'Organisation einer Veranstaltung' : el.to_s
@@ -212,5 +212,5 @@ def parse_scs
   end
   clean_scs_data(scs)
 
-  generate_latex(scs, 'data/scs.tex', formatter: scs_latextify)
+  generate_latex(scs, 'data/scs.tex', formatter: scs_latextify, group_by_year: false)
 end

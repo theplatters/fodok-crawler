@@ -30,19 +30,17 @@ end
 
 def publication_year_formatter
   by_year_formatter(
-    formatter: simple_formatter(&method(:build_pub_item))
+    &simple_formatter(&method(:build_pub_item))
   )
 end
 
 def working_paper_year_formatter
   base = simple_formatter(&method(:build_pub_item))
 
-  by_year_formatter(
-    formatter: lambda do |rows|
-      sort_wp_in_descending_order(rows)
-      base.call(rows)
-    end
-  )
+  by_year_formatter do |rows|
+    sort_wp_in_descending_order(rows)
+    base.call(rows)
+  end
 end
 
 class CSV
