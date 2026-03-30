@@ -14,6 +14,7 @@ module Columns
   MEDIA_HOUSE = 'Name Medienhaus/Outlet'
   MEDIA_FORMAT = 'Medienformat'
   APA_FORMAT = 'APA-Format'
+  ROLE = 'Rollen der Mitwirkenden'
 end
 
 def sanitize(string)

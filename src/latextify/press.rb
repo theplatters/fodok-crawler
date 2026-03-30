@@ -11,7 +11,7 @@ def build_press_item(item)
 end
 
 def press_prelude(item)
-  if item['Rollen der Mitwirkenden'] == 'Autor*in'
+  if item[Columns::ROLE] == 'Autor*in'
     "#{item[Columns::PERSONS]}:"
   else
     "#{item[Columns::PERSONS]} zitiert in"
@@ -73,9 +73,7 @@ end
 def parse_press
   process_latex_pipeline(
     'data/presse.csv',
-    clean: lambda { |data|
-      clean_up_data(data)
-    },
+    clean: method(:clean_up_data),
     split: method(:split_press_and_radio),
     generate: lambda { |(press, radio)|
       generate_latex(press, 'data/press.tex', formatter: press_year_formatter)

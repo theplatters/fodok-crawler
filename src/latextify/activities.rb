@@ -133,24 +133,6 @@ def by_year_act
   )
 end
 
-def clean_up(data)
-  data[Columns::TITLE] = data[Columns::TITLE].map do |titel|
-    titel.gsub('(Externe Organisation)', '')
-  end
-
-  data.delete_if do |row|
-    row[Columns::TYPE] == 'Teilnehmer*in'
-  end
-
-  clean_up_names(data)
-
-  add_year(data)
-
-  data.delete_if do |r|
-    in_2026?(r)
-  end
-end
-
 def clean_up_activities_data(activities)
   activities.delete_if do |row|
     row[Columns::TYPE] != 'Vortrag oder Präsentation'
@@ -167,35 +149,59 @@ def clean_scs_data(scs)
   end
 end
 
+def clean_up(data)
+  data[Columns::TITLE] = data[Columns::TITLE].map do |title|
+    title.gsub('(Externe Organisation)', '')
+  end
+
+  data.delete_if { |row| row[Columns::TYPE] == 'Teilnehmer*in' }
+
+  clean_up_names(data)
+  add_year(data)
+  data.delete_if { |row| in_2026?(row) }
+
+  data
+end
+
+def clean_activities(data)
+  clean_up(data)
+  clean_up_activities_data(data)
+  data
+end
+
+def split_activities(data)
+  data.partition { |row| research_seminar_predicate(row) }
+end
+
+def generate_activities_latex(finished, research_seminars)
+  generate_latex(finished, 'data/activities.tex', formatter: by_year_act)
+  generate_latex(research_seminars, 'data/rs.tex', formatter: by_year_rs)
+end
+
+def clean_scs(data)
+  data.delete_if { |row| !TO_EXCLUDE.include?(row[Columns::TYPE]) }
+  clean_up(data)
+  clean_scs_data(data)
+  data
+end
+
+def generate_scs_latex(data)
+  generate_latex(data, 'data/scs.tex', formatter: scs_latextify, group_by_year: false)
+end
+
 def parse_activities
   process_latex_pipeline(
     'data/aktivitaeten_erweitert.csv',
-    clean: lambda { |data|
-      clean_up(data)
-      clean_up_activities_data(data)
-      data # Ensure the cleaned data is returned
-    },
-    split: lambda { |data|
-      data.partition { |row| research_seminar_predicate(row) }
-    },
-    generate: lambda { |(finished, rs)|
-      generate_latex(finished, 'data/activities.tex', formatter: by_year_act)
-      generate_latex(rs, 'data/rs.tex', formatter: by_year_rs)
-    }
+    clean: method(:clean_activities),
+    split: method(:split_activities),
+    generate: ->((finished, rs)) { generate_activities_latex(finished, rs) }
   )
 end
 
 def parse_scs
   process_latex_pipeline(
     'data/aktivitaeten_erweitert.csv',
-    clean: lambda { |data|
-      data.delete_if { |row| !TO_EXCLUDE.include?(row[Columns::TYPE]) }
-      clean_up(data)
-      clean_scs_data(data)
-      data
-    },
-    generate: lambda { |scs_data|
-      generate_latex(scs_data, 'data/scs.tex', formatter: scs_latextify, group_by_year: false)
-    }
+    clean: method(:clean_scs),
+    generate: method(:generate_scs_latex)
   )
 end

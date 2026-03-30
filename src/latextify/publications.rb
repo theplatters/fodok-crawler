@@ -78,25 +78,26 @@ def generate_latex_for_publications(space_wp, icae_wp, published, blog)
   end
 end
 
+def clean_and_sort_publications(data)
+  # Sort by year descending, then APA format
+  sorted_rows = data.sort_by { |r| [-r[Columns::YEAR].to_i, r[Columns::APA_FORMAT].to_s] }
+  sorted_table = CSV::Table.new(sorted_rows)
+
+  strip_apa_from_link(sorted_table)
+  sorted_table.reject { |r| in_2026?(r) }
+end
+
+def split_all_publications(data)
+  space_wp, icae_wp, published = split_into_wp(data)
+  blog, published = split_into_blog(published)
+  [space_wp, icae_wp, published, blog]
+end
+
 def parse_publications
   process_latex_pipeline(
     'data/publikationen.csv',
-    clean: lambda { |data|
-      # Custom read/sort logic for publications
-      headers = data.headers
-      sorted_rows = data.sort_by do |row|
-        [-row[Columns::YEAR].to_i, row[Columns::APA_FORMAT].to_s]
-      end
-      pub_table = CSV::Table.new(sorted_rows.map { |r| CSV::Row.new(headers, r.fields) })
-      clean_up_publications(pub_table)
-    },
-    split: lambda { |data|
-      space_wp, icae_wp, published = split_into_wp(data)
-      blog, published = split_into_blog(published)
-      [space_wp, icae_wp, published, blog]
-    },
-    generate: lambda { |(space_wp, icae_wp, published, blog)|
-      generate_latex_for_publications(space_wp, icae_wp, published, blog)
-    }
+    clean: method(:clean_and_sort_publications),
+    split: method(:split_all_publications),
+    generate: ->(args) { generate_latex_for_publications(*args) }
   )
 end
