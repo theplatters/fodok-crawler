@@ -161,7 +161,7 @@ def clean_up_activities_data(activities)
   end
 
   activities['Titel'] = activities['Titel'].map do |titel|
-    titel.gsub('(Externe Organisation)')
+    titel.gsub(/(Externe Organisation)/, '')
   end
 
   clean_up_names(activities)
@@ -186,6 +186,10 @@ end
 
 def clean_scs_data(scs)
   add_year(scs)
+
+  scs['Titel'] = scs['Titel'].map do |titel|
+    titel.gsub('(Externe Organisation)', '')
+  end
 
   scs.delete_if do |row|
     row['Übergeordneter Typ'] == 'Teilnehmer*in'
