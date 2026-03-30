@@ -68,19 +68,29 @@ def split_into_wp(publications)
   [by_series['SPACE Working Paper Series'], by_series['ICAE Working Paper Series'], published]
 end
 
-def generate_latex_for_publications(space_wp, icae_wp, published)
+def generate_latex_for_publications(space_wp, icae_wp, published, blog)
   {
     'data/space_wp.tex' => [space_wp, working_paper_year_formatter],
     'data/icae_wp.tex' => [icae_wp, working_paper_year_formatter],
-    'data/publications.tex' => [published, publication_year_formatter]
+    'data/publications.tex' => [published, publication_year_formatter],
+    'data/blog.tex' => [blog, publication_year_formatter]
   }.each do |path, (items, formatter)|
     generate_latex(items, path, formatter: formatter)
   end
+end
+
+def split_into_blog(published)
+  published.each do |row|
+    row['Blog'] = row['APA-Format'].include?('Blog Beitrag')
+    row['APA-Format'] = row['APA-Format'].gsub('Blog Beitrag', '').strip
+  end
+  published.partition { |row| row['Blog'] }
 end
 
 def parse_publications
   publications = CSV.read('data/publikationen.csv', headers: true).sort_by_year_apa
   publications = clean_up_publications(publications)
   space_wp, icae_wp, published = split_into_wp(publications)
-  generate_latex_for_publications(space_wp, icae_wp, published)
+  blog, published = split_into_blog(published)
+  generate_latex_for_publications(space_wp, icae_wp, published, blog)
 end
