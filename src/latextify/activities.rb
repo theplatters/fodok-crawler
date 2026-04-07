@@ -80,16 +80,16 @@ def research_seminar_predicate(row)
 end
 
 def choose_item_formatter(section_title)
-  if section_title == 'Organisation von Veranstaltung'
-    method(:build_scs_item, include_event: true)
-  else
-    method(:build_scs_item)
+  include_event = section_title == 'Organisation von Veranstaltung'
+
+  lambda do |*args, **kwargs|
+    build_scs_item(*args, **kwargs, include_event: include_event)
   end
 end
 
 def build_content_for_scs(section_title, grouped_rows)
   item_formatter = choose_item_formatter(section_title)
-  formatter = by_year_formatter(
+  formatter = subsection_formatter(
     &simple_formatter(
       group_by: method(:by_title_date),
       &item_formatter
@@ -103,7 +103,7 @@ def scs_latextify
     group_by: ->(row) { row[Columns::TYPE] }
   ) do |section_title, grouped_rows|
     <<~LATEX
-      \\subsubsection{#{section_title}}
+      \\subsection{#{section_title}}
       #{build_content_for_scs(section_title, grouped_rows)}
     LATEX
   end
@@ -116,7 +116,7 @@ def add_year(rows)
 end
 
 def research_seminar_year_formatter
-  by_year_formatter(
+  section_formatter(
     &simple_formatter(
       group_by: method(:by_title_date),
       &method(:build_item_for_rs)
@@ -125,7 +125,7 @@ def research_seminar_year_formatter
 end
 
 def activities_year_formatter
-  by_year_formatter(
+  section_formatter(
     &simple_formatter(
       group_by: method(:by_title_date),
       &method(:build_item_for_activities)

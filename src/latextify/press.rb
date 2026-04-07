@@ -36,7 +36,7 @@ def formatted_press_date(item)
 end
 
 def press_year_formatter
-  by_year_formatter(
+  section_formatter(
     &simple_formatter(&method(:build_press_item))
   )
 end

@@ -31,25 +31,35 @@ def build_pub_item(pub)
 end
 
 def publication_year_formatter
-  by_year_formatter(&simple_formatter(&method(:build_pub_item)))
+  section_formatter(&simple_formatter(&method(:build_pub_item)))
 end
 
 def working_paper_year_formatter
   base = simple_formatter(&method(:build_pub_item))
 
-  by_year_formatter do |rows|
+  section_formatter do |rows|
     sort_wp_in_descending_order!(rows)
     base.call(rows)
   end
 end
 
 def split_into_wp(publications)
-  by_series = publications.group_by { |row| row['Serienname'] }
-  published = by_series.reject { |series, _| WP_SERIES.include?(series) }.values.flatten(1)
+  space_wp = []
+  icae_wp = []
+  published = []
 
-  [by_series['SPACE Working Paper Series'] || [],
-   by_series['ICAE Working Paper Series'] || [],
-   published]
+  publications.each do |row|
+    case row['Serienname']
+    when 'SPACE Working Paper Series'
+      space_wp << row
+    when 'ICAE Working Paper Series'
+      icae_wp << row
+    else
+      published << row
+    end
+  end
+
+  [space_wp, icae_wp, published]
 end
 
 def split_into_blog(published)

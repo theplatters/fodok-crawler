@@ -32,7 +32,8 @@ end
 
 def group_by_year(&latextify)
   lambda do |items|
-    items.group_by { |row| row['Jahr'] }
+    items.group_by { |row| row[Columns::YEAR] }
+         .sort_by { |year, _| -year.to_i }
          .map { |year, rows| latextify.call(year, rows) }
          .join
   end
@@ -73,9 +74,15 @@ def simple_formatter(group_by: nil, &item_format)
   end
 end
 
-def by_year_formatter(&formatter)
+def section_formatter(&formatter)
   lambda do |year, rows|
     "\\subsection*{#{year}}\n#{formatter.call(rows)}"
+  end
+end
+
+def subsection_formatter(&formatter)
+  lambda do |year, rows|
+    "\\subsubsection*{#{year}}\n#{formatter.call(rows)}"
   end
 end
 
