@@ -83,12 +83,22 @@ def generate_latex_for_publications(space_wp, icae_wp, published, blog)
   end
 end
 
+def employed_elsewhere(row)
+  row['Name der Organisationseinheit']
+    .to_s
+    .match(/"(Forschungsinstitut für die Gesamtanalyse der Wirtschaft)|(Socio-Ecological Transformation Lab)"/) &&
+    row[Columns::YEAR].to_i < 2024 &&
+    row[Columns::PERSONS].matches(/(Theine)|(Bäuerle)|(Altreiter)/)
+end
+
 def clean_and_sort_publications(data)
   # Sort by year descending, then APA format
+  data.reject { |r| employed_elsewhere(r) }
   sorted_rows = data.sort_by { |r| [-r[Columns::YEAR].to_i, r[Columns::APA_FORMAT].to_s] }
   sorted_table = CSV::Table.new(sorted_rows)
 
   strip_apa_from_link(sorted_table)
+
   sorted_table.reject { |r| in_2026?(r) }
 end
 

@@ -3,18 +3,19 @@
 require 'csv'
 require_relative 'helper_methods'
 
-def build_press_item(item)
+def build_press_item(_title, item)
   prelude = press_prelude(item)
-  content = press_content(item)
+  content = press_content(item[0])
 
   "\t \\item #{[prelude, content].reject(&:empty?).join(' ')}"
 end
 
-def press_prelude(item)
-  if item[Columns::ROLE] == 'Autor*in'
-    "#{item[Columns::PERSONS]}:"
+def press_prelude(items)
+  authors = build_persons(items)
+  if items[0][Columns::ROLE] == 'Autor*in'
+    "#{authors}:"
   else
-    "#{item[Columns::PERSONS]} zitiert in"
+    "#{authors} zitiert in"
   end
 end
 
@@ -37,7 +38,10 @@ end
 
 def press_year_formatter
   section_formatter(
-    &simple_formatter(&method(:build_press_item))
+    &simple_formatter(
+      group_by: method(:by_title_date),
+      &method(:build_press_item)
+    )
   )
 end
 
@@ -72,7 +76,7 @@ end
 
 def parse_press
   process_latex_pipeline(
-    'data/presse.csv',
+    'data/presse_erweitert.csv',
     clean: method(:clean_press_data),
     split: method(:split_press_and_radio),
     generate: lambda { |(press, radio)|

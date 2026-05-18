@@ -17,6 +17,17 @@ module Columns
   ROLE = 'Rollen der Mitwirkenden'
 end
 
+def by_title_date(row)
+  [row[Columns::TITLE], row[Columns::START_DATE]]
+end
+
+def build_persons(act)
+  extern_person = act.map { _1[Columns::EXTERNAL_PERSON] }.join(' ').strip
+  persons = act.map { _1[Columns::PERSONS] }.join(' ').strip
+
+  "#{persons}#{extern_person.empty? ? '' : " #{extern_person}"}"
+end
+
 def sanitize(string)
   return nil unless string
 

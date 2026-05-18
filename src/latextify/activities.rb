@@ -21,13 +21,6 @@ TO_EXCLUDE = ['Andere Gutachtertätigkeit',
               'Gutachtertätigkeiten',
               'Wissenschaftliche Gesellschaft'].freeze
 
-def build_persons(act)
-  extern_person = act.map { _1[Columns::EXTERNAL_PERSON] }.join(' ').strip
-  persons = act.map { _1[Columns::PERSONS] }.join(' ').strip
-
-  "#{persons}#{extern_person.empty? ? '' : " #{extern_person}"}:"
-end
-
 def held_at(act)
   if !act.first['Veranstaltung'].to_s.empty? || act.first['Veranstaltung'] == act.first[Columns::TITLE]
     "gehalten bei #{act.first['Veranstaltung']}"
@@ -38,7 +31,7 @@ end
 
 def build_item_for_activities(title, act)
   cont = [
-    build_persons(act),
+    "#{build_persons(act)}:",
     title[0],
     held_at(act),
     format_date(act.first[Columns::START_DATE])
@@ -49,7 +42,7 @@ end
 
 def build_item_for_rs(title, act)
   cont = [
-    build_persons(act),
+    "#{build_persons(act)}:",
     title[0],
     format_date(act.first[Columns::START_DATE])
   ].reject(&:empty?).join(' ')
@@ -60,7 +53,7 @@ end
 # Merged build_item_for_scs and build_item_for_scs_no_title
 def build_scs_item(title, act, include_event: false)
   parts = [
-    build_persons(act),
+    "#{build_persons(act)}:",
     title[0]
   ]
 
@@ -69,10 +62,6 @@ def build_scs_item(title, act, include_event: false)
   parts << format_date(act.first[Columns::START_DATE])
 
   "\t\\item #{sanitize(parts.compact.join(' '))}"
-end
-
-def by_title_date(row)
-  [row[Columns::TITLE], row[Columns::START_DATE]]
 end
 
 def research_seminar_predicate(row)
